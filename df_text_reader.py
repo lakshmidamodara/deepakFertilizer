@@ -143,6 +143,40 @@ def replaceSingleQuotes_TASK(txt):
         local_task_list.append(row[39])
     final_task_list.append(local_task_list)
 
+def insertActivity():
+    try:
+        print("\n", file=tempOutFile)
+        #db_conn = dbu.getConn()
+
+        # first remove empty list from result_data i.e, if there are empty rows in the excel
+        totalRec = len(final_task_list)
+
+        for i in range(0, totalRec):
+            activityId_temp = final_task_list[i][0]
+            activity_name_temp = final_task_list[i][2]
+            activityName = activityId_temp + '-' + activity_name_temp
+            actualStDate = final_task_list[i][3]
+            actualEndDate = final_task_list[i][4]
+            plannedStDate = final_task_list[i][11]
+            plannedEndDate = final_task_list[i][12]
+
+            # If the Actual StartDate and Actual EndDate are null [29],[30]
+            # then take late StartDate and late EndDate [31],[32]
+            if actualStDate == "":
+                actualStDate = final_task_list[i][5]
+            if actualEndDate == "":
+                actualEndDate = final_task_list[i][6]
+
+            # activities table insert
+            execSQL = "INSERT INTO ACTIVITIES (NAME,PLANNED_START,PLANNED_END) VALUES (%s,%s,%s);"
+            execData = (activityName,actualStDate,actualEndDate)
+            print("----- INSERT Statements for Task List ------------------", file=tempOutFile)
+            print(execSQL,execData,file=tempOutFile)
+            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+
+    except(Exception) as error:
+        print("Error in insertActivity:%s" %error)
 
 ReadWriteWBSID()
 ReadwriteTASKS()
+insertActivity()
