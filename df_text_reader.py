@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import calendar
 import db_utilities as dbu
 import psycopg2
+import excel_config_reader as ecr
 
 import csv
 
@@ -22,6 +23,7 @@ in_filepath = 'D:\\Anaconda3\\Kumar\\cct\\input_file\\'
 
 infile = in_filepath + 'df_baseline.xer'
 tempOutFile = open(out_Filepath + 'output.txt','w')
+actvity_txtFile = open(out_Filepath +'activity_data.txt','w')
 
 global ProjectID
 
@@ -31,26 +33,24 @@ global ProjectID
 wbs_id = '%T' + '\t' + 'PROJWBS'
 wbs_id_end = '%T' + '\t' + 'ACTVTYPE'
 word_task = '%T' + '\t' + 'TASK'
-word_task_end = '%T' + '\t' + 'TASKACTV'
-word_task_resource_id = '%T' + '\t' + 'TASKRSRC'
-word_task_resource_end = '%T' + '\t' + 'UDFVALUE'
+#word_task_end = '%T' + '\t' + 'TASKACTV'
+word_task_end = '%T'
 
 word_loc_wbs_id = 0
 word_loc_wbs_id_end = 0
 word_loc_task = []
 word_loc_task_end = 0
-word_loc_task_resource_id = 0
-word_loc_task_resource_end = 0
+
 
 wbs_list = []
 task_list = []
 
 final_wbs_list = []
 final_task_list = []
-final_activity_resource_list = []
 bundle_list = []
-
+expand_dates_list = []
 bundle_dict = {}
+holiday_data = []
 
 with open(infile, 'r') as f:
     #reader = csv.reader(f, dialect='excel', delimiter='\t')
@@ -69,12 +69,6 @@ with open(infile, 'r') as f:
         if word_task_end in line:
             #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
             word_loc_task_end = i+1
-        if word_task_resource_id in line:
-            #print("Word \"{}\" found in line {}".format(word_task_resource_id, i + 1))
-            word_loc_task_resource_id = i+1
-        if word_task_resource_end in line:
-            #print("Word \"{}\" found in line {}".format(word_task_resource_end, i + 1))
-            word_loc_task_resource_end = i+1
 
     #print(word_loc_task)
 
@@ -118,7 +112,6 @@ def ReadwriteTASKS():
         # remove the first item in the list as it is the column headings
         wbs_list.pop(0)
         #print(wbs_list, file=tempOutFile)
-        ## remove quotes and other data from the list and write to final_wbs_list
 
         for i in range(0,len(wbs_list)):
             replaceSingleQuotes_TASK(wbs_list[i])
@@ -127,6 +120,144 @@ def ReadwriteTASKS():
     myfile.close()
     print("----- Final Task List ------------------", file=tempOutFile)
     print(final_task_list, file=tempOutFile)
+
+
+#This function reads the result_data and does the following:
+#  inserts the activity, start date and end date in activities table
+# The second part of the function does the following:
+#   takes the start date, end date and expands all date in between them
+# Function reads the total work days from excel_config.ini file and based on the value of [TotalWorkDays]
+# it expands the date. If it is 5, then only dates between monday to friday is generated
+# if TotalWorkDays is 6, then dates between monday to saturday is generated.
+def expandDates():
+    try:
+        if (len(expand_dates_list)) == 0:
+            raise ErrorOccured("Empty result List")
+
+        #get database connection
+        db_conn = dbu.getConn()
+        # get the total workdays in a week
+        tWdays = ecr.getTotalWorkdays()
+        planned_hours =8 # assign planned hours per day as 8 hours
+        totalRecords = len(expand_dates_list)
+        #counter=0
+        print("\n",file=actvity_txtFile)
+        print("#### Printing insert query for activity_data ######", file=actvity_txtFile)
+
+        ## Truncate temp.activity_data. We will insert rows into this table
+        ## and then call a stored function to transfer them into activity_data table
+        execSQL = "TRUNCATE TABLE activity_data"
+        dbu.executeQuery(db_conn, execSQL)
+
+        for i in range(0,totalRecords):
+            activityN = expand_dates_list[i][0]
+            startDate = expand_dates_list[i][1]
+            TendDate = expand_dates_list[i][2]
+            dtDate = datetime.strptime(startDate, '%Y-%m-%d %H:%M')
+            enddtDate = datetime.strptime(TendDate, '%Y-%m-%d %H:%M')
+            #Now for each activity, expand the dates startDate until end date
+            # and insert into the activities_data table
+            dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
+
+            for d in dd:
+                execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
+                # get the weekday
+                wDay = getDayofWeek(d)
+                dstat = checkIfHoliday(d)
+                planned_hours = 8
+                if tWdays == '5': # if its a 5 day work week
+                    if dstat == 'w': # if its not a holiday
+                        if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4: #monday - friday
+                            # activities table insert
+                            execData = (activityN, d,planned_hours)
+                            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            print(execSQL, execData,file=actvity_txtFile)
+                            #counter = counter + 1 #comment this line in production
+                        elif wDay == 5 or wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
+                            planned_hours = None
+                            execData = (activityN, d, planned_hours)
+                            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            print(execSQL, execData, file=actvity_txtFile)
+                            #counter = counter + 1  # comment this line in production
+                    elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
+                        planned_hours = None
+                        execData = (activityN, d, planned_hours)
+                        #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                        print(execSQL, execData, file=actvity_txtFile)
+                elif tWdays == '6': # if its a 6 day work week : monday to Saturday
+                    if dstat == 'w':
+                        if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4 or wDay == 5:
+                            execData = (activityN, d, planned_hours)
+                            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            print(execSQL, execData,file=f)
+                            #counter = counter + 1  #comment this line in production
+                        elif wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
+                            planned_hours = None
+                            execData = (activityN, d, planned_hours)
+                            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            print(execSQL, execData, file=actvity_txtFile)
+                    elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
+                        planned_hours = None
+                        execData = (activityN, d, planned_hours)
+                        #dbu.executeQueryWithData(db_conn, execSQL, execData)
+                        print(execSQL, execData, file=actvity_txtFile)
+
+        ## Call the stored function to insert into activity_data
+        stProc = "SELECT update_baseline_activity_data()"
+        #dbu.executeQuery(db_conn, stProc)
+
+        #db_conn.close()
+    except (Exception) as error:
+        print("Error in expandDates(): %s" %error)
+        print(sys.exc_traceback.tb_lineno)
+    except (ErrorOccured) as e:
+        print(e.Message)
+        print(sys.exc_traceback.tb_lineno)
+
+#check if the given date is a holiday or a working day
+def checkIfHoliday(dDate):
+    try:
+        dtString = datetime.strftime(dDate,'%Y-%m-%d')
+        if dtString in holiday_data:
+            dayStatus = 'h'
+            return dayStatus
+        else:
+            dayStatus = 'w'
+            return dayStatus
+    except (Exception) as error:
+        print("Error in checkIfHoliday() %s" %error)
+
+# this function accepts the date as an argument
+# and returns the day of the date. Mon =1, tue=2, wed=3 ....sat=6, sun=0
+def getDayofWeek(ddDate):
+    try:
+        strDate = str(ddDate)
+        print('I am in getDayofWeek -', strDate)
+        ddDate = datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
+        wkday = calendar.weekday(ddDate.year, ddDate.month, ddDate.day)
+        return wkday
+    except (Exception) as error:
+        print("Error in getDayofWeek(): %s" %error)
+
+
+# This function reads the list of holidays from the holidays table and
+# populates the holiday_data list
+def readHolidays():
+    try:
+        # get database connection
+        db_conn = dbu.getConn()
+        stProc = "SELECT holiday from holidays"
+        m_row = dbu.executeQueryRes(db_conn, stProc)
+
+        # Reading the data fetched from the database
+        for row in m_row:
+            if row[0] != None:
+               dtDate = row[0].strftime('%Y-%m-%d')
+               holiday_data.append(dtDate)
+    except (Exception) as error:
+        print ("Error in readHolidayExcel(): %s" %error)
+    except (ErrorOccured) as e:
+        print (e)
 
 #-------- Utility functions ---------------
 
@@ -159,6 +290,13 @@ def replaceSingleQuotes_WBS(txt):
 
     final_wbs_list.append(local_wbs_list)
 
+
+# This function is to make sure the Task name does not have any commas in them.
+# If there are any commas, it is treated as a separate string and all the
+# elements in the list gets shifted one position.
+# As we read the xer file in the task section, there are 65 columns.
+# If there are more than 65 columns, then it is assumed that the Task name has commas and a
+# separate element has been created. So this function, removes the commas and concats the Task name
 def replaceSingleQuotes_TASK(txt):
     local_task_list = []
     #print(txt)
@@ -205,11 +343,12 @@ def insertActivity():
     try:
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
-        activity_dict = {}
         # first remove empty list from result_data i.e, if there are empty rows in the excel
         totalRec = len(final_task_list)
 
         for i in range(0, totalRec):
+            local_list = []
+
             activityId_temp = final_task_list[i][0]
             bundleID = final_task_list[i][1]
             activity_name_temp = final_task_list[i][2]
@@ -232,38 +371,33 @@ def insertActivity():
             if plannedEndDate == "":
                 plannedEndDate = None
 
-            '''
-            # activities table insert
-            execSQL = "INSERT INTO ACTIVITIES (NAME,PROJECT_ID,PLANNED_START,PLANNED_END,TOTAL_PLANNED_UNITS) VALUES (%s,%s,%s,%s,%s);"
-            execData = (activityName,ProjectID,actualStDate,actualEndDate,total_planned_units)
-            print("----- INSERT Statements for Task List ------------------", file=tempOutFile)
-            print(execSQL,execData,file=tempOutFile)
-            dbu.executeQueryWithData(db_conn, execSQL, execData)
-            '''
-
             print("----- INSERT Statements for activities ------------------", file=tempOutFile)
             execSQL = ('insert_activities_data')
             execData = (activityName,None,None,None,None,None,ProjectID,total_planned_units,plannedStDate,plannedEndDate,None,actualStDate,actualEndDate, None)
             print(execSQL, execData, file=tempOutFile)
             lCurrentActivityID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+            local_list.append(lCurrentActivityID)
+            local_list.append(plannedStDate)
+            local_list.append(plannedEndDate)
+
+            # contains the db_activityID, planned start date and planned end date
+            # This list is used for expanding dates into the activity_data table
+            # This list will be used by expandDates()
+            expand_dates_list.append(local_list)
 
             #Now get the db_bundle id from the dictionary and insert into the corresponding bundle_activity table
             db_BundleID = bundle_dict.get(bundleID)
 
             # Bundle activities table insert
+            print("----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
             execSQL = "INSERT INTO BUNDLE_ACTIVITIES (ACTIVITY_ID,BUNDLE_ID) VALUES (%s,%s);"
             execData = (lCurrentActivityID, db_BundleID)
-            print("----- INSERT Statements for Task List ------------------", file=tempOutFile)
             print(execSQL, execData, file=tempOutFile)
             dbu.executeQueryWithData(db_conn, execSQL, execData)
 
     except(Exception) as error:
         print("Error in insertActivity:%s" %error)
 
-
-def getLocalBundleID(keyValue):
-    localValue = bundle_dict.get(keyValue)
-    return localValue
 
 def getProjectID():
     try:
@@ -319,10 +453,10 @@ def insertBundlesData():
             execData = (lParentBundleID,lBundleName,ProjectID,None)
             print(execSQL, execData,file=tempOutFile)
             lCurrentBundleID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
-            #lCurrentBundleID = 101
             local_bundle_list.append(lCurrentBundleID) # this is the current bundleid from database query
             lParentBundleID = lCurrentBundleID
             bundle_list.append(local_bundle_list)
+
             # update the bundle_dictionary which will be read for inserting bundle_activities data
             bundle_dict.update({lBundleID:lCurrentBundleID})
 
@@ -335,7 +469,9 @@ def insertBundlesData():
 
 ReadWriteWBSID()
 ReadwriteTASKS()
+readHolidays()
 getProjectID()
 insertBundlesData()
 insertActivity()
+expandDates()
 
