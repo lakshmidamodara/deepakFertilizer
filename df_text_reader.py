@@ -48,6 +48,9 @@ task_list = []
 final_wbs_list = []
 final_task_list = []
 final_activity_resource_list = []
+bundle_list = []
+
+bundle_dict = {}
 
 with open(infile, 'r') as f:
     #reader = csv.reader(f, dialect='excel', delimiter='\t')
@@ -125,31 +128,6 @@ def ReadwriteTASKS():
     print("----- Final Task List ------------------", file=tempOutFile)
     print(final_task_list, file=tempOutFile)
 
-def ReadWriteResources():
-    row = []
-    # now write the wbs_id data into a file with starting and ending line numbers
-    with open(infile, 'r') as f:
-        for line in f.readlines()[word_loc_task_resource_id:word_loc_task_resource_end-1]:
-            #print(line,file=tempOutFile)
-            row.append([line])
-            #for i in line.split(","):
-            #    row[-1].append(i)
-            with open(out_Filepath + 'resources_file.txt', "a") as myfile:
-                wbs_list.append(line.replace('\t',','))
-                myfile.write(line)
-        # remove the first item in the list as it is the column headings
-        wbs_list.pop(0)
-        #print(wbs_list, file=tempOutFile)
-
-        ## remove quotes and other data from the list and write to final_wbs_list
-        for i in range(0,len(wbs_list)):
-            createResourcesList(wbs_list[i])
-    f.close()
-    myfile.close()
-    print("----- Final Activity Resource List ------------------", file=tempOutFile)
-    print(final_activity_resource_list,file=tempOutFile)
-
-
 #-------- Utility functions ---------------
 
 def processString(row,diff):
@@ -189,6 +167,8 @@ def replaceSingleQuotes_TASK(txt):
         local_task_list.append(row[3])
         if len(row) == 65 :
             local_task_list.append(row[16])
+            local_task_list.append(row[21])
+            local_task_list.append(row[23])
             local_task_list.append(row[29])
             local_task_list.append(row[30])
             local_task_list.append(row[31])
@@ -206,6 +186,8 @@ def replaceSingleQuotes_TASK(txt):
             for i in range(17, endIndex + 1):
                 LName = LName + "" + row[i]
             local_task_list.append(LName)
+            local_task_list.append(row[21+diff])
+            local_task_list.append(row[23+diff])
             local_task_list.append(row[29+diff])
             local_task_list.append(row[30+diff])
             local_task_list.append(row[31+diff])
@@ -219,24 +201,11 @@ def replaceSingleQuotes_TASK(txt):
 
     final_task_list.append(local_task_list)
 
-def createResourcesList(txt):
-    local_resources_list = []
-    for row in csv.reader(txt.splitlines()):
-        local_resources_list.append(row[2])
-        local_resources_list.append(row[13])
-        local_resources_list.append(row[17])
-        local_resources_list.append(row[20])
-        local_resources_list.append(row[23])
-        local_resources_list.append(row[24])
-        print(local_resources_list)
-
-    final_activity_resource_list.append(local_resources_list)
-
 def insertActivity():
     try:
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
-
+        activity_dict = {}
         # first remove empty list from result_data i.e, if there are empty rows in the excel
         totalRec = len(final_task_list)
 
@@ -245,41 +214,63 @@ def insertActivity():
             bundleID = final_task_list[i][1]
             activity_name_temp = final_task_list[i][2]
             activityName = activityId_temp + '-' + activity_name_temp
-            actualStDate = final_task_list[i][3]
-            actualEndDate = final_task_list[i][4]
-            plannedStDate = final_task_list[i][11]
-            plannedEndDate = final_task_list[i][12]
+            actualStDate = final_task_list[i][5]
+            actualEndDate = final_task_list[i][6]
+            plannedStDate = final_task_list[i][13]
+            plannedEndDate = final_task_list[i][14]
+            total_planned_units_temp = float(final_task_list[i][4])
+            total_planned_units = round(total_planned_units_temp)
 
             # If the Actual StartDate and Actual EndDate are null [29],[30]
             # then take late StartDate and late EndDate [31],[32]
             if actualStDate == "":
-                actualStDate = final_task_list[i][5]
+                actualStDate = None
             if actualEndDate == "":
-                actualEndDate = final_task_list[i][6]
+                actualEndDate = None
+            if plannedStDate == "":
+                plannedStDate = None
+            if plannedEndDate == "":
+                plannedEndDate = None
 
+            '''
             # activities table insert
-            execSQL = "INSERT INTO ACTIVITIES (NAME,PROJECT_ID,PLANNED_START,PLANNED_END) VALUES (%s,%s,%s,%s);"
-            execData = (activityName,ProjectID,actualStDate,actualEndDate)
+            execSQL = "INSERT INTO ACTIVITIES (NAME,PROJECT_ID,PLANNED_START,PLANNED_END,TOTAL_PLANNED_UNITS) VALUES (%s,%s,%s,%s,%s);"
+            execData = (activityName,ProjectID,actualStDate,actualEndDate,total_planned_units)
             print("----- INSERT Statements for Task List ------------------", file=tempOutFile)
             print(execSQL,execData,file=tempOutFile)
-            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+            dbu.executeQueryWithData(db_conn, execSQL, execData)
+            '''
+
+            print("----- INSERT Statements for activities ------------------", file=tempOutFile)
+            execSQL = ('insert_activities_data')
+            execData = (activityName,None,None,None,None,None,ProjectID,total_planned_units,plannedStDate,plannedEndDate,None,actualStDate,actualEndDate, None)
+            print(execSQL, execData, file=tempOutFile)
+            lCurrentActivityID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+
+            #Now get the db_bundle id from the dictionary and insert into the corresponding bundle_activity table
+            db_BundleID = bundle_dict.get(bundleID)
 
             # Bundle activities table insert
             execSQL = "INSERT INTO BUNDLE_ACTIVITIES (ACTIVITY_ID,BUNDLE_ID) VALUES (%s,%s);"
-            execData = (activityId_temp, bundleID)
+            execData = (lCurrentActivityID, db_BundleID)
             print("----- INSERT Statements for Task List ------------------", file=tempOutFile)
             print(execSQL, execData, file=tempOutFile)
-            # dbu.executeQueryWithData(db_conn, execSQL, execData)
+            dbu.executeQueryWithData(db_conn, execSQL, execData)
 
     except(Exception) as error:
         print("Error in insertActivity:%s" %error)
 
+
+def getLocalBundleID(keyValue):
+    localValue = bundle_dict.get(keyValue)
+    return localValue
 
 def getProjectID():
     try:
         #first get the project name and check if project exists
         local_projectName = final_wbs_list[0][1]
         local_projectId = insertProjectData(local_projectName)
+        print(local_projectId)
         global ProjectID
         ProjectID = local_projectId
 
@@ -292,7 +283,7 @@ def insertProjectData(prjName):
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT ID from PROJECTS WHERE NAME='%s'" %prjName
-        m_row = dbu.executeQueryRes(db_conn, stProc)
+        m_row = dbu.executeQueryRes(db_conn, stProc)[0]
         #numHolidays = len(m_row)
         if len(m_row) > 0:
             return m_row[0]
@@ -301,25 +292,42 @@ def insertProjectData(prjName):
             execSQL = ('insert_project_data')
             execData = (prjName, None, None, None,None,None, None, None)
             print(execSQL,execData,file=tempOutFile)
-            return  dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
+            prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
+            return prjID
 
     except (Exception, psycopg2.DatabaseError) as error:
         print("Database Error %s " % error)
         raise
 
+
 def insertBundlesData():
     try:
         # get database connection
-        #db_conn = dbu.getConn()
+        db_conn = dbu.getConn()
+        lParentBundleID = None
         print("-------Writing WBS Data to Bundles Table --------------------",file=tempOutFile)
         for i in range (0, len(final_wbs_list)):
+            local_bundle_list = []
             lBundleID = final_wbs_list[i][0]
-            lBundleName = final_wbs_list[i][1]
-            lParentBundleID = final_wbs_list[i][2]
-            execSQL = "INSERT INTO BUNDLES (ID,PARENT_BUNDLE_ID,NAME,PROJECT_ID) VALUES (%s,%s,%s,%s);"
-            execData = (lBundleID, lParentBundleID, lBundleName, ProjectID)
-            print(execSQL,execData,file=tempOutFile)
-            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+            Local_lBundleName = final_wbs_list[i][1]
+            lBundleName = lBundleID + "-" + Local_lBundleName
+            # create a list with client_bundleid,bundle_name & database created bundleID
+            local_bundle_list.append(lBundleID)
+
+            print("----- INSERT Statements for Bundles ------------------", file=tempOutFile)
+            execSQL = ('insert_bundles_data')
+            execData = (lParentBundleID,lBundleName,ProjectID,None)
+            print(execSQL, execData,file=tempOutFile)
+            lCurrentBundleID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+            #lCurrentBundleID = 101
+            local_bundle_list.append(lCurrentBundleID) # this is the current bundleid from database query
+            lParentBundleID = lCurrentBundleID
+            bundle_list.append(local_bundle_list)
+            # update the bundle_dictionary which will be read for inserting bundle_activities data
+            bundle_dict.update({lBundleID:lCurrentBundleID})
+
+        print('-------------Bundle List ----------------------',file=tempOutFile)
+        print(bundle_list,file=tempOutFile)
     except (Exception, psycopg2.DatabaseError) as error:
         print("Database Error in insertBundlesData() %s " % error)
         raise
@@ -327,7 +335,7 @@ def insertBundlesData():
 
 ReadWriteWBSID()
 ReadwriteTASKS()
-#ReadWriteResources()
 getProjectID()
 insertBundlesData()
 insertActivity()
+
