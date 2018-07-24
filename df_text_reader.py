@@ -32,16 +32,22 @@ wbs_id = '%T' + '\t' + 'PROJWBS'
 wbs_id_end = '%T' + '\t' + 'ACTVTYPE'
 word_task = '%T' + '\t' + 'TASK'
 word_task_end = '%T' + '\t' + 'TASKACTV'
+word_task_resource_id = '%T' + '\t' + 'TASKRSRC'
+word_task_resource_end = '%T' + '\t' + 'UDFVALUE'
+
 word_loc_wbs_id = 0
 word_loc_wbs_id_end = 0
 word_loc_task = []
 word_loc_task_end = 0
+word_loc_task_resource_id = 0
+word_loc_task_resource_end = 0
 
 wbs_list = []
 task_list = []
 
 final_wbs_list = []
 final_task_list = []
+final_activity_resource_list = []
 
 with open(infile, 'r') as f:
     #reader = csv.reader(f, dialect='excel', delimiter='\t')
@@ -60,8 +66,14 @@ with open(infile, 'r') as f:
         if word_task_end in line:
             #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
             word_loc_task_end = i+1
+        if word_task_resource_id in line:
+            #print("Word \"{}\" found in line {}".format(word_task_resource_id, i + 1))
+            word_loc_task_resource_id = i+1
+        if word_task_resource_end in line:
+            #print("Word \"{}\" found in line {}".format(word_task_resource_end, i + 1))
+            word_loc_task_resource_end = i+1
 
-    print(word_loc_task)
+    #print(word_loc_task)
 
 def ReadWriteWBSID():
     row = []
@@ -113,6 +125,32 @@ def ReadwriteTASKS():
     print("----- Final Task List ------------------", file=tempOutFile)
     print(final_task_list, file=tempOutFile)
 
+def ReadWriteResources():
+    row = []
+    # now write the wbs_id data into a file with starting and ending line numbers
+    with open(infile, 'r') as f:
+        for line in f.readlines()[word_loc_task_resource_id:word_loc_task_resource_end-1]:
+            #print(line,file=tempOutFile)
+            row.append([line])
+            #for i in line.split(","):
+            #    row[-1].append(i)
+            with open(out_Filepath + 'resources_file.txt', "a") as myfile:
+                wbs_list.append(line.replace('\t',','))
+                myfile.write(line)
+        # remove the first item in the list as it is the column headings
+        wbs_list.pop(0)
+        #print(wbs_list, file=tempOutFile)
+
+        ## remove quotes and other data from the list and write to final_wbs_list
+        for i in range(0,len(wbs_list)):
+            createResourcesList(wbs_list[i])
+    f.close()
+    myfile.close()
+    print("----- Final Activity Resource List ------------------", file=tempOutFile)
+    print(final_activity_resource_list,file=tempOutFile)
+
+
+#-------- Utility functions ---------------
 
 def processString(row,diff):
     LList = {}
@@ -181,6 +219,19 @@ def replaceSingleQuotes_TASK(txt):
 
     final_task_list.append(local_task_list)
 
+def createResourcesList(txt):
+    local_resources_list = []
+    for row in csv.reader(txt.splitlines()):
+        local_resources_list.append(row[2])
+        local_resources_list.append(row[13])
+        local_resources_list.append(row[17])
+        local_resources_list.append(row[20])
+        local_resources_list.append(row[23])
+        local_resources_list.append(row[24])
+        print(local_resources_list)
+
+    final_activity_resource_list.append(local_resources_list)
+
 def insertActivity():
     try:
         print("\n", file=tempOutFile)
@@ -228,10 +279,9 @@ def getProjectID():
     try:
         #first get the project name and check if project exists
         local_projectName = final_wbs_list[0][1]
-        print(local_projectName)
         local_projectId = insertProjectData(local_projectName)
         global ProjectID
-        ProjectID = local_projectId[0]
+        ProjectID = local_projectId
 
     except (Exception) as error:
         print ("Error in reading Project Table(): %s" %error)
@@ -244,12 +294,14 @@ def insertProjectData(prjName):
         stProc = "SELECT ID from PROJECTS WHERE NAME='%s'" %prjName
         m_row = dbu.executeQueryRes(db_conn, stProc)
         #numHolidays = len(m_row)
-        if m_row[0] != None:
+        if len(m_row) > 0:
             return m_row[0]
         else:
-            stProc = "INSERT INTO PROJECTS (ID,NAME) VALUES ()"
-            print('Sorry project does not exist')
-
+            print("----- INSERT Statements for New Project ------------------", file=tempOutFile)
+            execSQL = ('insert_project_data')
+            execData = (prjName, None, None, None,None,None, None, None)
+            print(execSQL,execData,file=tempOutFile)
+            return  dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
 
     except (Exception, psycopg2.DatabaseError) as error:
         print("Database Error %s " % error)
@@ -275,6 +327,7 @@ def insertBundlesData():
 
 ReadWriteWBSID()
 ReadwriteTASKS()
+#ReadWriteResources()
 getProjectID()
 insertBundlesData()
 insertActivity()
