@@ -1,3 +1,26 @@
+'''
+## ----------- ------------------
+Program Name : df_text_reader.py
+Author : Lakshmi Damodara
+Date : 25th July 2018
+
+Description:
+This program was written to parse an xer file in memory and extract the bundles, activity data from it.
+The data is then inserted into various tables as defined by the cct business definitions.
+1. The input file in memory is read from various locations for different types of data
+   bundles, activities, project data.
+
+2. Then after cleaning up, the data is inserted in tables:
+   project, activities, bundles, activity_bundles, activity_data.
+
+3. Output files: Various output is read throughout the program and written to
+output.txt - contains all the data in lists
+wbs_text - contains the bundles data
+activity_data - contains the activity data
+
+## -------------------------------------
+'''
+
 import sys
 import base64
 import io
@@ -52,74 +75,91 @@ expand_dates_list = []
 bundle_dict = {}
 holiday_data = []
 
+# This section opens the input xer file and locates the various section of the data
+# wbs - bundles, tasks - activities etc..
+# This location is then passed on to the functions below for reading the data
 with open(infile, 'r') as f:
-    #reader = csv.reader(f, dialect='excel', delimiter='\t')
-    reader = f.read().split("\n")
+    try:
+        #reader = csv.reader(f, dialect='excel', delimiter='\t')
+        reader = f.read().split("\n")
 
-    for i,line in enumerate(reader):
-        if wbs_id in line: # or word in line.split() to search for full words
-            #print("Word \"{}\" found in line {}".format(wbs_id, i+1))
-            word_loc_wbs_id = i+1
-        if wbs_id_end in line:
-            #print("Word \"{}\" found in line {}".format(wbs_id_end, i + 1))
-            word_loc_wbs_id_end = i + 1
-        if word_task in line:
-            #print("Word \"{}\" found in line {}".format(word_task, i + 1))
-            word_loc_task.append(i+1)
-        if word_task_end in line:
-            #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
-            word_loc_task_end = i+1
+        for i,line in enumerate(reader):
+            if wbs_id in line: # or word in line.split() to search for full words
+                #print("Word \"{}\" found in line {}".format(wbs_id, i+1))
+                word_loc_wbs_id = i+1
+            if wbs_id_end in line:
+                #print("Word \"{}\" found in line {}".format(wbs_id_end, i + 1))
+                word_loc_wbs_id_end = i + 1
+            if word_task in line:
+                #print("Word \"{}\" found in line {}".format(word_task, i + 1))
+                word_loc_task.append(i+1)
+            if word_task_end in line:
+                #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
+                word_loc_task_end = i+1
+    except (Exception) as error:
+        print(error)
+    except (IOError) as ioe:
+        print(ioe)
 
-    #print(word_loc_task)
-
+# This function reads the bundle based data based on the starting and ending location
+# obtained from the above.
 def ReadWriteWBSID():
-    row = []
-    # now write the wbs_id data into a file with starting and ending line numbers
-    with open(infile, 'r') as f:
-        for line in f.readlines()[word_loc_wbs_id:word_loc_wbs_id_end-1]:
-            #print(line,file=tempOutFile)
-            row.append([line])
-            for i in line.split(","):
-                row[-1].append(i)
-            with open(out_Filepath + 'wbs_file.txt', "a") as myfile:
-                wbs_list.append(line.replace('\t',','))
-                myfile.write(line)
-        # remove the first item in the list as it is the column headings
-        wbs_list.pop(0)
-        #print(wbs_list, file=tempOutFile)
+    try:
+        row = []
+        # now write the wbs_id data into a file with starting and ending line numbers
+        with open(infile, 'r') as f:
+            # read the lines from the xer file line by line
+            # starting from the locations obtained above
+            for line in f.readlines()[word_loc_wbs_id:word_loc_wbs_id_end-1]:
+                row.append([line])
+                for i in line.split(","): # split the lines based on comma
+                    row[-1].append(i)
+                    # writing the lines to the external text file
+                with open(out_Filepath + 'wbs_file.txt', "a") as myfile:
+                    wbs_list.append(line.replace('\t',','))
+                    myfile.write(line)
+            # remove the first item in the list as it is the column headings
+            wbs_list.pop(0)
+            #print(wbs_list, file=tempOutFile)
 
-        ## remove quotes and other data from the list and write to final_wbs_list
-        for i in range(0,len(wbs_list)):
-            replaceSingleQuotes_WBS(wbs_list[i])
-    f.close()
-    myfile.close()
-    print("----- Final WBS List ------------------", file=tempOutFile)
-    print(final_wbs_list,file=tempOutFile)
+            ## remove quotes and other data from the list and write to final_wbs_list
+            for i in range(0,len(wbs_list)):
+                replaceSingleQuotes_WBS(wbs_list[i])
+        f.close()
+        myfile.close()
+        print("----- Final WBS List ------------------", file=tempOutFile)
+        print(final_wbs_list,file=tempOutFile)
+    except (Exception) as error:
+        print(error)
 
-
+# This function reads the activity based data based on the starting and ending location
+# obtained from the above.
 def ReadwriteTASKS():
-    row = []
-    wbs_list = []
-    with open(infile, 'r') as f:
-        for line in f.readlines()[word_loc_task[0]:word_loc_task[1]-1]:
-            #print(line,file=tempOutFile)
-            row.append([line])
-            for i in line.split(","):
-                row[-1].append(i)
-            with open(out_Filepath + 'wbs_task.txt', "a") as myfile:
-                wbs_list.append(line.replace('\t', ','))
-                myfile.write(line)
-        # remove the first item in the list as it is the column headings
-        wbs_list.pop(0)
-        #print(wbs_list, file=tempOutFile)
+    try:
+        row = []
+        wbs_list = []
+        with open(infile, 'r') as f:
+            for line in f.readlines()[word_loc_task[0]:word_loc_task[1]-1]:
+                #print(line,file=tempOutFile)
+                row.append([line])
+                for i in line.split(","):
+                    row[-1].append(i)
+                with open(out_Filepath + 'wbs_task.txt', "a") as myfile:
+                    wbs_list.append(line.replace('\t', ','))
+                    myfile.write(line)
+            # remove the first item in the list as it is the column headings
+            wbs_list.pop(0)
+            #print(wbs_list, file=tempOutFile)
 
-        for i in range(0,len(wbs_list)):
-            replaceSingleQuotes_TASK(wbs_list[i])
+            for i in range(0,len(wbs_list)):
+                replaceSingleQuotes_TASK(wbs_list[i])
 
-    f.close()
-    myfile.close()
-    print("----- Final Task List ------------------", file=tempOutFile)
-    print(final_task_list, file=tempOutFile)
+        f.close()
+        myfile.close()
+        print("----- Final Task List ------------------", file=tempOutFile)
+        print(final_task_list, file=tempOutFile)
+    except (Exception, ErrorOccured) as error:
+        print(error)
 
 
 #This function reads the result_data and does the following:
@@ -232,7 +272,6 @@ def checkIfHoliday(dDate):
 def getDayofWeek(ddDate):
     try:
         strDate = str(ddDate)
-        print('I am in getDayofWeek -', strDate)
         ddDate = datetime.strptime(strDate, "%Y-%m-%d %H:%M:%S")
         wkday = calendar.weekday(ddDate.year, ddDate.month, ddDate.day)
         return wkday
@@ -261,16 +300,12 @@ def readHolidays():
 
 #-------- Utility functions ---------------
 
-def processString(row,diff):
-    LList = {}
-    LName = row[10]
-    endIndex = 10 + diff
-    parentId = row[endIndex+2]
-    for i in range (11, endIndex+1):
-        LName = LName + "" + row[i]
-    dict = {'Name': LName, 'Parent': parentId}
-    return dict
-
+# This function is to make sure the bundle name does not have any commas in them.
+# If there are any commas, it is treated as a separate string and all the
+# elements in the list gets shifted one position.
+# As we read the xer file in the task section, there are 27 columns.
+# If there are more than 65 columns, then it is assumed that the Task name has commas and a
+# separate element has been created. So this function, removes the commas and concats the Task name
 def replaceSingleQuotes_WBS(txt):
     local_wbs_list = []
     for row in csv.reader(txt.splitlines()):
@@ -298,47 +333,52 @@ def replaceSingleQuotes_WBS(txt):
 # If there are more than 65 columns, then it is assumed that the Task name has commas and a
 # separate element has been created. So this function, removes the commas and concats the Task name
 def replaceSingleQuotes_TASK(txt):
-    local_task_list = []
-    #print(txt)
-    for row in csv.reader(txt.splitlines()):
-        local_task_list.append(row[1])
-        local_task_list.append(row[3])
-        if len(row) == 65 :
-            local_task_list.append(row[16])
-            local_task_list.append(row[21])
-            local_task_list.append(row[23])
-            local_task_list.append(row[29])
-            local_task_list.append(row[30])
-            local_task_list.append(row[31])
-            local_task_list.append(row[32])
-            local_task_list.append(row[34])
-            local_task_list.append(row[35])
-            local_task_list.append(row[36])
-            local_task_list.append(row[37])
-            local_task_list.append(row[38])
-            local_task_list.append(row[39])
-        elif len(row) != 65:
-            diff = len(row) - 65
-            LName = row[16]
-            endIndex = 16 + diff
-            for i in range(17, endIndex + 1):
-                LName = LName + "" + row[i]
-            local_task_list.append(LName)
-            local_task_list.append(row[21+diff])
-            local_task_list.append(row[23+diff])
-            local_task_list.append(row[29+diff])
-            local_task_list.append(row[30+diff])
-            local_task_list.append(row[31+diff])
-            local_task_list.append(row[32+diff])
-            local_task_list.append(row[34+diff])
-            local_task_list.append(row[35+diff])
-            local_task_list.append(row[36+diff])
-            local_task_list.append(row[37+diff])
-            local_task_list.append(row[38+diff])
-            local_task_list.append(row[39+diff])
+    try:
+        local_task_list = []
+        #print(txt)
+        for row in csv.reader(txt.splitlines()):
+            local_task_list.append(row[1])
+            local_task_list.append(row[3])
+            if len(row) == 65 :
+                local_task_list.append(row[16])
+                local_task_list.append(row[21])
+                local_task_list.append(row[23])
+                local_task_list.append(row[29])
+                local_task_list.append(row[30])
+                local_task_list.append(row[31])
+                local_task_list.append(row[32])
+                local_task_list.append(row[34])
+                local_task_list.append(row[35])
+                local_task_list.append(row[36])
+                local_task_list.append(row[37])
+                local_task_list.append(row[38])
+                local_task_list.append(row[39])
+            elif len(row) != 65:
+                diff = len(row) - 65
+                LName = row[16]
+                endIndex = 16 + diff
+                for i in range(17, endIndex + 1):
+                    LName = LName + "" + row[i]
+                local_task_list.append(LName)
+                local_task_list.append(row[21+diff])
+                local_task_list.append(row[23+diff])
+                local_task_list.append(row[29+diff])
+                local_task_list.append(row[30+diff])
+                local_task_list.append(row[31+diff])
+                local_task_list.append(row[32+diff])
+                local_task_list.append(row[34+diff])
+                local_task_list.append(row[35+diff])
+                local_task_list.append(row[36+diff])
+                local_task_list.append(row[37+diff])
+                local_task_list.append(row[38+diff])
+                local_task_list.append(row[39+diff])
 
-    final_task_list.append(local_task_list)
+        final_task_list.append(local_task_list)
+    except (Exception,ErrorOccured) as error:
+        print(error)
 
+
+# This function inserts the values into the Activity, Activity_bundles table
 def insertActivity():
     try:
         print("\n", file=tempOutFile)
@@ -397,21 +437,25 @@ def insertActivity():
 
     except(Exception) as error:
         print("Error in insertActivity:%s" %error)
+    except (psycopg2) as dberror:
+        print(dberror)
 
-
+# This function is called from insertProjectData()
 def getProjectID():
     try:
         #first get the project name and check if project exists
         local_projectName = final_wbs_list[0][1]
         local_projectId = insertProjectData(local_projectName)
-        print(local_projectId)
         global ProjectID
         ProjectID = local_projectId
 
     except (Exception) as error:
         print ("Error in reading Project Table(): %s" %error)
 
-
+# This function is run initially to make sure that project data is available in the
+# projects table. If project is not present, then it inserts the project data.
+# The project id is then stored in the global ProjectID variable for other
+# functions to use them
 def insertProjectData(prjName):
     try:
         # get database connection
@@ -433,7 +477,10 @@ def insertProjectData(prjName):
         print("Database Error %s " % error)
         raise
 
-
+# This function inserts the values into the bundles table.
+# After insertion, it obtains the bundle id from the database and stores in the global
+# bundles_dict which is then used by insertActivities() function to obtain the
+# db bundle id
 def insertBundlesData():
     try:
         # get database connection
@@ -467,6 +514,7 @@ def insertBundlesData():
         raise
 
 
+# Function calls inorder
 ReadWriteWBSID()
 ReadwriteTASKS()
 readHolidays()
@@ -475,3 +523,4 @@ insertBundlesData()
 insertActivity()
 expandDates()
 
+# -- End of Program ---#
