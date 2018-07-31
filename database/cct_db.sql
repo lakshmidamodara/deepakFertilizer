@@ -2421,6 +2421,31 @@ CREATE INDEX t1 ON bundles USING btree (project_id);
 
 CREATE INDEX t2 ON bundle_activities USING btree (bundle_id, activity_id);
 
+--
+-- TOC entry 255 (class 1259 OID 44114)
+-- Name: holidays; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE "holidays" (
+    "id" integer,
+    "project_id" integer,
+    "holiday" "date"
+);
+
+
+--
+-- TOC entry 256 (class 1259 OID 44117)
+-- Name: holidays_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE "holidays_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 2147483647
+    CACHE 1;
+
+
 
 --
 -- Name: public; Type: ACL; Schema: -; Owner: -
@@ -2431,6 +2456,8 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
 GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
 
 
 --
