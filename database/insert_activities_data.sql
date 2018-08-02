@@ -16,7 +16,7 @@ CREATE OR REPLACE FUNCTION insert_activities_data(p_name text, p_unit_id integer
 													p_total_planned_units bigint, p_planned_start date,
 													p_planned_end date, p_unit_name text,
 													p_actual_start date, p_actual_end date, 
-													p_hourly_cost double precision, phase_id integer, 
+													p_hourly_cost double precision,  
 													p_total_planned_resources integer, p_external_id integer,
 													p_is_deleted integer, p_is_milestone integer, p_material_id integer,
 													p_material_quantity integer,
