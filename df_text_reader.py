@@ -61,14 +61,20 @@ word_task = '%T' + '\t' + 'TASK'
 #word_task_end = '%T' + '\t' + 'TASKACTV'
 word_task_end = '%T'
 
+task_predecessor_id = '%T' + '\t' + 'TASKPRED'
+task_predecessor_end = '%T' + '\t' + 'TASKPROC'
+
 word_loc_wbs_id = 0
 word_loc_wbs_id_end = 0
 word_loc_task = []
 word_loc_task_end = 0
+task_predecessor_start = 0
+task_predecessor_end_count = 0
 
 
 wbs_list = []
 task_list = []
+task_pred_list = []
 
 final_wbs_list = []
 final_task_list = []
@@ -76,12 +82,13 @@ bundle_list = []
 expand_dates_list = []
 bundle_dict = {}
 holiday_data = []
-global phaseID_data, key_value_list, activity_milestone
+global phaseID_data, key_value_list, activity_milestone, task_predecessor, activityID_clientActivityID
 phaseID_data = []
 phases_dict = {}
 key_value_list = []
 activity_milestone = []
-
+task_predecessor = []
+activityID_clientActivityID = []
 
 # This section opens the input xer file and locates the various section of the data
 # wbs - bundles, tasks - activities etc..
@@ -90,6 +97,7 @@ with open(infile, 'r') as f:
     try:
         #reader = csv.reader(f, dialect='excel', delimiter='\t')
         reader = f.read().split("\n")
+        print('<< Reading Line Numbers for Each Record Set : WBSID, TASKID, TASKPRED >>')
 
         for i,line in enumerate(reader):
             if wbs_id in line: # or word in line.split() to search for full words
@@ -104,6 +112,14 @@ with open(infile, 'r') as f:
             if word_task_end in line:
                 #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
                 word_loc_task_end = i+1
+            if task_predecessor_id in line:
+                #print("Word \"{}\" found in line {}".format(task_predecessor_id, i + 1))
+                task_predecessor_start = i+1
+            if task_predecessor_end in line:
+                #print("Word \"{}\" found in line {}".format(task_predecessor_end, i + 1))
+                task_predecessor_end_count = i+1
+
+        print('<< FINISHED : Reading Line Numbers for Each Record Set : WBSID, TASKID, TASKPRED >>')
     except (Exception) as error:
         print(error)
     except (IOError) as ioe:
@@ -113,6 +129,7 @@ with open(infile, 'r') as f:
 # obtained from the above.
 def ReadWriteWBSID():
     try:
+        print('<< Reading Records for  : WBSID - ReadWriteWBSID() >>')
         row = []
         # now write the wbs_id data into a file with starting and ending line numbers
         with open(infile, 'r') as f:
@@ -135,15 +152,66 @@ def ReadWriteWBSID():
                 replaceSingleQuotes_WBS(wbs_list[i])
         f.close()
         myfile.close()
+        del row
         print("----- Final WBS List ------------------", file=tempOutFile)
         print(final_wbs_list,file=tempOutFile)
+        print('<< FINISHED: Reading Records for  : WBSID - ReadWriteWBSID() >>')
     except (Exception) as error:
         print(error)
+
+# This function reads the Task predecessor data based on the starting and ending location
+# obtained from the above.
+def ReadWriteTaskPredecessor():
+    try:
+        print('<< Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
+        row = []
+        # now write the wbs_id data into a file with starting and ending line numbers
+        with open(infile, 'r') as f:
+            # read the lines from the xer file line by line
+            # starting from the locations obtained above
+            for line in f.readlines()[task_predecessor_start:task_predecessor_end_count-1]:
+                row.append([line])
+                for i in line.split(","): # split the lines based on comma
+                    row[-1].append(i)
+                    # writing the lines to the external text file
+                with open(out_Filepath + 'task_predecessor_file.txt', "a") as myfile:
+                    task_pred_list.append(line.replace('\t',','))
+                    myfile.write(line)
+            # remove the first item in the list as it is the column headings
+            task_pred_list.pop(0)
+            #print(wbs_list, file=tempOutFile)
+
+            ## remove quotes and other data from the list and write to final_wbs_list
+            for i in range(0,len(task_pred_list)):
+                createTaskPredecessorList(task_pred_list[i])
+        f.close()
+        myfile.close()
+        del row
+        print('---------- Task Predecessor List ------------',file=tempOutFile)
+        print(task_predecessor,file=tempOutFile)
+        print('<< FINISHED: Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
+    except (Exception) as error:
+        print(error)
+
+# this function is called from ReadWriteTaskPredecessor()
+# this function creates a list for task predecessor
+def createTaskPredecessorList(txt):
+    try:
+        local_task_pred_list = []
+        global task_predecessor
+        for row in csv.reader(txt.splitlines()):
+            local_task_pred_list.append(row[2])
+            local_task_pred_list.append(row[3])
+            task_predecessor.append(local_task_pred_list)
+    except (Exception) as error:
+        print('Error thrown in createTaskPredecessorList() :', error)
+
 
 # This function reads the activity based data based on the starting and ending location
 # obtained from the above.
 def ReadwriteTASKS():
     try:
+        print('<< Reading Records for Task :- ReadwriteTASKS() >>')
         row = []
         wbs_list = []
         with open(infile, 'r') as f:
@@ -166,12 +234,14 @@ def ReadwriteTASKS():
         myfile.close()
         print("----- Final Task List ------------------", file=tempOutFile)
         print(final_task_list, file=tempOutFile)
+        print('<< FINISHED: Reading Records for Task :- ReadwriteTASKS() >>')
     except (Exception, ErrorOccured) as error:
         print(error)
 
 
 def createPhases():
     try:
+        print('<< Creating PHASES LIST :- createPhases() >>')
         global phaseID_data
         local_phaseID_data = []
         row = []
@@ -196,13 +266,14 @@ def createPhases():
         del row
         del local_phaseID_data
         del local_client_projID
-
+        print('<< FINISHED: Creating PHASES LIST :- createPhases() >>')
     except (Exception) as error:
         print('Error in createPhases() %s:' %error)
 
 
 def insertPhases():
     try:
+        print('<< INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
         # first read the phaseID_data []
         # then start inserting items into the phases table
         # get database connection
@@ -219,7 +290,8 @@ def insertPhases():
             #store the db_phaseID along with client wbsID in the phases_dict
             phases_dict.update({lPhaseID: lCurrentPhaseID})
 
-        print('Phases Dictionary :', phases_dict)
+        #print('Phases Dictionary :', phases_dict)
+        print('<< FINISHED: INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
     except (Exception) as error:
         print('Error in insertPhases() %s:' %error)
 
@@ -236,6 +308,7 @@ def insertPhases():
 # if TotalWorkDays is 6, then dates between monday to saturday is generated.
 def expandDates():
     try:
+        print('<< EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
         if (len(expand_dates_list)) == 0:
             raise ErrorOccured("Empty result List")
 
@@ -305,7 +378,10 @@ def expandDates():
                         planned_hours = None
                         execData = (activityN, d, planned_hours)
                         dbu.executeQueryWithData(db_conn, execSQL, execData)
+
                         print(execSQL, execData, file=actvity_txtFile)
+
+        print('<< FINISHED : EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
     except (Exception) as error:
         print("Error in expandDates(): %s" %error)
         print(sys.exc_traceback.tb_lineno)
@@ -342,6 +418,7 @@ def getDayofWeek(ddDate):
 # populates the holiday_data list
 def readHolidays():
     try:
+        print('<< READING HOLIDAYS Table :- readHolidays() >>')
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT holiday from holidays"
@@ -352,6 +429,8 @@ def readHolidays():
             if row[0] != None:
                dtDate = row[0].strftime('%Y-%m-%d')
                holiday_data.append(dtDate)
+
+        print('<< FINISHED: READING HOLIDAYS Table :- readHolidays() >>')
     except (Exception) as error:
         print ("Error in readHolidayExcel(): %s" %error)
     except (ErrorOccured) as e:
@@ -366,25 +445,30 @@ def readHolidays():
 # If there are more than 65 columns, then it is assumed that the Task name has commas and a
 # separate element has been created. So this function, removes the commas and concats the Task name
 def replaceSingleQuotes_WBS(txt):
-    local_wbs_list = []
-    for row in csv.reader(txt.splitlines()):
-        diff = len(row) - 27
-        local_wbs_list.append(row[1])
-        if len(row) == 27:
-            local_wbs_list.append(row[10])
-            local_wbs_list.append(row[12])
-            local_wbs_list.append(row[6])
-        elif len(row) != 27 :
-            LName = row[10]
-            endIndex = 10 + diff
-            parentId = row[endIndex + 2]
-            for i in range(11, endIndex + 1):
-                LName = LName + "" + row[i]
-            local_wbs_list.append(LName)
-            local_wbs_list.append(parentId)
-            local_wbs_list.append(row[6])
+    try:
+        #print('<< Writing the FINAL_WBS_LIST[] : replaceSingleQuotes_WBS() >>',txt)
+        local_wbs_list = []
+        for row in csv.reader(txt.splitlines()):
+            diff = len(row) - 27
+            local_wbs_list.append(row[1])
+            if len(row) == 27:
+                local_wbs_list.append(row[10])
+                local_wbs_list.append(row[12])
+                local_wbs_list.append(row[6])
+            elif len(row) != 27 :
+                LName = row[10]
+                endIndex = 10 + diff
+                parentId = row[endIndex + 2]
+                for i in range(11, endIndex + 1):
+                    LName = LName + "" + row[i]
+                local_wbs_list.append(LName)
+                local_wbs_list.append(parentId)
+                local_wbs_list.append(row[6])
 
-    final_wbs_list.append(local_wbs_list)
+        final_wbs_list.append(local_wbs_list)
+        #print('<< FINISHED: Writing the FINAL_WBS_LIST[] for data %s : replaceSingleQuotes_WBS() >>', txt)
+    except (Exception) as error:
+        print('Error thrown in replaceSingleQuotes_WBS()', error)
 
 
 # This function is to make sure the Task name does not have any commas in them.
@@ -395,6 +479,7 @@ def replaceSingleQuotes_WBS(txt):
 # separate element has been created. So this function, removes the commas and concats the Task name
 def replaceSingleQuotes_TASK(txt):
     try:
+        #print('<< Writing the FINAL_TASK_LIST[] : replaceSingleQuotes_TASK() >>')
         local_task_list = []
         #print(txt)
         for row in csv.reader(txt.splitlines()):
@@ -439,87 +524,15 @@ def replaceSingleQuotes_TASK(txt):
                 local_task_list.append(row[15])
 
         final_task_list.append(local_task_list)
+        #print('<< FINISHED: Writing the FINAL_TASK_LIST[] : replaceSingleQuotes_TASK() >>')
     except (Exception,ErrorOccured) as error:
         print(error)
 
 
-# This function inserts the values into the Activity, Activity_bundles table
-def insertActivity():
-    try:
-        print("\n", file=tempOutFile)
-        db_conn = dbu.getConn()
-        # first remove empty list from result_data i.e, if there are empty rows in the excel
-        totalRec = len(final_task_list)
-
-        for i in range(1, totalRec):
-            local_list = []
-
-            localProjectID = ProjectID[0]
-            activityId_temp = final_task_list[i][0]
-            activity_taskCode = final_task_list[i][16]
-
-            #getting the dbPhaseID based on the client activity
-            phaseID_activityID = findPhaseValue(activityId_temp)
-
-            activityExternalID = int(activityId_temp)
-            bundleID = final_task_list[i][1]
-            activity_name_temp = final_task_list[i][2]
-            activityName = activity_name_temp
-            actualStDate = final_task_list[i][5]
-            actualEndDate = final_task_list[i][6]
-            plannedStDate = final_task_list[i][13]
-            plannedEndDate = final_task_list[i][14]
-            total_planned_units_temp = float(final_task_list[i][4])
-            total_planned_units = round(total_planned_units_temp)
-
-            #Find out if the activity is a mileStone
-            isMileStone = findIfMileStone(activityId_temp)
-
-            # If the Actual StartDate and Actual EndDate are null [29],[30]
-            # then take late StartDate and late EndDate [31],[32]
-            if actualStDate == "":
-                actualStDate = None
-            if actualEndDate == "":
-                actualEndDate = None
-            if plannedStDate == "":
-                plannedStDate = None
-            if plannedEndDate == "":
-                plannedEndDate = None
-
-            print("----- INSERT Statements for activities() ------------------", file=tempOutFile)
-            execSQL = ('insert_activities_data')
-            execData = (activityName,None,None,None,None,phaseID_activityID,localProjectID,total_planned_units,
-                        plannedStDate,plannedEndDate, None,actualStDate,actualEndDate,None,None,activity_taskCode,
-                        None,isMileStone,None,None,None)
-            print(execSQL, execData, file=tempOutFile)
-            lCurrentActivityID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
-            local_list.append(lCurrentActivityID)
-            local_list.append(plannedStDate)
-            local_list.append(plannedEndDate)
-
-            # contains the db_activityID, planned start date and planned end date
-            # This list is used for expanding dates into the activity_data table
-            # This list will be used by expandDates()
-            expand_dates_list.append(local_list)
-
-            #Now get the db_bundle id from the dictionary and insert into the corresponding bundle_activity table
-            db_BundleID = bundle_dict.get(bundleID)
-
-            # Bundle activities table insert
-            print("----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
-            execSQL = "INSERT INTO BUNDLE_ACTIVITIES (ACTIVITY_ID,BUNDLE_ID) VALUES (%s,%s);"
-            execData = (lCurrentActivityID, db_BundleID)
-            print(execSQL, execData, file=tempOutFile)
-            dbu.executeQueryWithData(db_conn, execSQL, execData)
-
-    except(Exception) as error:
-        print("Error in insertActivity:%s" %error)
-    except (psycopg2) as dberror:
-        print(dberror)
-
 # This function is called from insertProjectData()
 def getProjectID():
     try:
+        print('<< Getting ProjectID from InputDataFile : getProjectID() >>')
         global ProjectID
         global clientProjectID
         #first get the project name and check if project exists
@@ -530,7 +543,7 @@ def getProjectID():
             ProjectID = insertProjectData(local_project_name)
         #elif IsProjectFlag == 'N':
         #    # Go through the final_wbs_list and find the project Node flag
-
+        print('<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
     except (Exception) as error:
         print ("Error in reading Project Table(): %s" %error)
 
@@ -540,6 +553,7 @@ def getProjectID():
 # functions to use them
 def insertProjectData(prjName):
     try:
+        print('<< Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT ID from PROJECTS WHERE NAME='%s'" %prjName
@@ -555,7 +569,7 @@ def insertProjectData(prjName):
             prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
             print(prjID)
             return prjID
-
+        print('<< FINISHED: Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
         print("Database Error %s " % error)
         raise
@@ -566,6 +580,7 @@ def insertProjectData(prjName):
 # db bundle id
 def insertBundlesData():
     try:
+        print('<< INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
         # get database connection
         db_conn = dbu.getConn()
         lParentBundleID = None
@@ -616,9 +631,116 @@ def insertBundlesData():
 
         print('-------------Bundle Dictionary ----------------------', file=tempOutFile)
         print(bundle_dict, file=tempOutFile)
+        print('<< FINISHED: INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
         print("Database Error in insertBundlesData() %s " % error)
         raise
+
+# This function inserts the values into the Activity, Activity_bundles table
+def insertActivity():
+    try:
+        print('<< INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
+        print("\n", file=tempOutFile)
+        db_conn = dbu.getConn()
+        # first remove empty list from result_data i.e, if there are empty rows in the excel
+        totalRec = len(final_task_list)
+
+        for i in range(1, totalRec):
+            local_list = []
+            LactID = []
+
+            localProjectID = ProjectID[0]
+            activityId_temp = final_task_list[i][0]
+            activity_taskCode = final_task_list[i][16]
+
+            #getting the dbPhaseID based on the client activity
+            phaseID_activityID = findPhaseValue(activityId_temp)
+
+            activityExternalID = int(activityId_temp)
+            bundleID = final_task_list[i][1]
+            activity_name_temp = final_task_list[i][2]
+            activityName = activity_name_temp
+            actualStDate = final_task_list[i][5]
+            actualEndDate = final_task_list[i][6]
+            plannedStDate = final_task_list[i][13]
+            plannedEndDate = final_task_list[i][14]
+            total_planned_units_temp = float(final_task_list[i][4])
+            total_planned_units = round(total_planned_units_temp)
+
+            #Find out if the activity is a mileStone
+            isMileStone = findIfMileStone(activityId_temp)
+
+            # If the Actual StartDate and Actual EndDate are null [29],[30]
+            # then take late StartDate and late EndDate [31],[32]
+            if actualStDate == "":
+                actualStDate = None
+            if actualEndDate == "":
+                actualEndDate = None
+            if plannedStDate == "":
+                plannedStDate = None
+            if plannedEndDate == "":
+                plannedEndDate = None
+
+            print("----- INSERT Statements for activities() ------------------", file=tempOutFile)
+            execSQL = ('insert_activities_data')
+            execData = (activityName,None,None,None,None,phaseID_activityID,localProjectID,total_planned_units,
+                        plannedStDate,plannedEndDate, None,actualStDate,actualEndDate,None,None,activity_taskCode,
+                        None,isMileStone,None,None,None)
+            print(execSQL, execData, file=tempOutFile)
+            lCurrentActivityID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+            local_list.append(lCurrentActivityID)
+            local_list.append(plannedStDate)
+            local_list.append(plannedEndDate)
+
+            # inserting the db_activityID and client_ActivityID in to activityID_clientActivityID []
+            # This data is required for inserting values into activity_dependencies table
+            LactID.append(lCurrentActivityID)
+            LactID.append(activityId_temp)
+            activityID_clientActivityID.append(LactID)
+
+            # contains the db_activityID, planned start date and planned end date
+            # This list is used for expanding dates into the activity_data table
+            # This list will be used by expandDates()
+            expand_dates_list.append(local_list)
+
+            #Now get the db_bundle id from the dictionary and insert into the corresponding bundle_activity table
+            db_BundleID = bundle_dict.get(bundleID)
+
+            # Bundle activities table insert
+            print("----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
+            execSQL = "INSERT INTO BUNDLE_ACTIVITIES (ACTIVITY_ID,BUNDLE_ID) VALUES (%s,%s);"
+            execData = (lCurrentActivityID, db_BundleID)
+            print(execSQL, execData, file=tempOutFile)
+            dbu.executeQueryWithData(db_conn, execSQL, execData)
+
+        print('-------- Task Predecessor List -------------')
+        print(activityID_clientActivityID, file=tempOutFile)
+        print('<< FINISHED: INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
+    except(Exception) as error:
+        print("Error in insertActivity:%s" %error)
+    except (psycopg2) as dberror:
+        print(dberror)
+
+# this function inserts data into Activity Dependency table
+# this function calls the findActivityIDForGivenClientTaskID() to get the db_ActivityID
+def insertActivityPredecessor():
+    try:
+        print('<< INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
+        print("\n", file=tempOutFile)
+        db_conn = dbu.getConn()
+        print(len(task_predecessor))
+        for i in range(0, len(task_predecessor)):
+            activityID = findActivityIDForGivenClientTaskID(task_predecessor[i][0])
+            activityID_Pred = findActivityIDForGivenClientTaskID(task_predecessor[i][1])
+            print("----- INSERT Statements for ACTIVITY DEPENDENCIES ------------------", file=tempOutFile)
+            execSQL = "INSERT INTO ACTIVITY_DEPENDENCIES (ACTIVITY_ID,REQUIRED_ACTIVITY_ID) VALUES (%s,%s);"
+            execData = (activityID, activityID_Pred)
+            print(execSQL, execData, file=tempOutFile)
+            dbu.executeQueryWithData(db_conn, execSQL, execData)
+        print('<< FINISHED: INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
+    except (Exception) as error:
+        print('Error in insertActivityPredecessor()', error)
+
 
 # this function is called from : createActivityPhases()
 # This function just inverts the key,value pair of phase_dict
@@ -688,6 +810,15 @@ def createActivityPhases():
 
 #This function returns the phaseId once the client activity id is passed
 # This function is called mainly from insertActivity() to get the phaseID from the cliend ActivityID
+def findActivityIDForGivenClientTaskID(val):
+    for i in range(0,len(activityID_clientActivityID)):
+        if val in activityID_clientActivityID[i][1]:
+            #print(key_value_list[i][0], val)
+            return activityID_clientActivityID[i][0]
+
+
+#This function returns the phaseId once the client activity id is passed
+# This function is called mainly from insertActivity() to get the phaseID from the cliend ActivityID
 def findPhaseValue(val):
     for i in range(0,len(key_value_list)):
         if val in key_value_list[i]:
@@ -727,6 +858,7 @@ def createMileStone():
 # Function calls inorder
 ReadWriteWBSID()
 ReadwriteTASKS()
+ReadWriteTaskPredecessor()
 readHolidays()
 getProjectID()
 createPhases()
@@ -735,6 +867,8 @@ createActivityPhases()
 insertBundlesData()
 createMileStone()
 insertActivity()
+insertActivityPredecessor()
 expandDates()
 
+print('---- PROGRAM ENDED ----')
 # -- End of Program ---#
