@@ -42,8 +42,8 @@ class ErrorOccured(RuntimeError):
 #print(datetime.datetime.today())
 
 global Filepath
-out_Filepath = 'd:\\anaconda3\\kumar\\cct\out_file\\df\\'
-in_filepath = 'D:\\Anaconda3\\Kumar\\cct\\input_file\\'
+out_Filepath = 'c:\\temp\\deepak\\'
+in_filepath = 'c:\\temp\\deepak\\'
 
 infile = in_filepath + 'df_baseline.xer'
 tempOutFile = open(out_Filepath + 'output.txt','w')
@@ -55,22 +55,10 @@ global clientProjectID
 #offile=open(outfile,"wb")
 
 # Read the file and get the output from the following string onwards
-wbs_id = '%T' + '\t' + 'PROJWBS'
-wbs_id_end = '%T' + '\t' + 'ACTVTYPE'
-word_task = '%T' + '\t' + 'TASK'
-#word_task_end = '%T' + '\t' + 'TASKACTV'
-word_task_end = '%T'
-
+wbs_tab_id = '%T' + '\t' + 'PROJWBS'
+task_tab_id = '%T' + '\t' + 'TASK'
 task_predecessor_id = '%T' + '\t' + 'TASKPRED'
-task_predecessor_end = '%T' + '\t' + 'TASKPROC'
-
-word_loc_wbs_id = 0
-word_loc_wbs_id_end = 0
-word_loc_task = []
-word_loc_task_end = 0
-task_predecessor_start = 0
-task_predecessor_end_count = 0
-
+table_end_identifier = '%T'
 
 wbs_list = []
 task_list = []
@@ -90,40 +78,25 @@ activity_milestone = []
 task_predecessor = []
 activityID_clientActivityID = []
 
-# This section opens the input xer file and locates the various section of the data
+# This function opens the input xer file and locates the various section of the data
 # wbs - bundles, tasks - activities etc..
 # This location is then passed on to the functions below for reading the data
-with open(infile, 'r') as f:
-    try:
-        #reader = csv.reader(f, dialect='excel', delimiter='\t')
+def getTableStartAndEndPositions(table_id):
+    table_start = 0
+    with open(infile, 'r') as f:
+        # read the lines from the xer file line by line
+        # starting from the locations obtained above
         reader = f.read().split("\n")
-        print('<< Reading Line Numbers for Each Record Set : WBSID, TASKID, TASKPRED >>')
+        print('<< Reading Line Numbers for Each Record Set : WBSID >>')
 
-        for i,line in enumerate(reader):
-            if wbs_id in line: # or word in line.split() to search for full words
-                #print("Word \"{}\" found in line {}".format(wbs_id, i+1))
-                word_loc_wbs_id = i+1
-            if wbs_id_end in line:
-                #print("Word \"{}\" found in line {}".format(wbs_id_end, i + 1))
-                word_loc_wbs_id_end = i + 1
-            if word_task in line:
-                #print("Word \"{}\" found in line {}".format(word_task, i + 1))
-                word_loc_task.append(i+1)
-            if word_task_end in line:
-                #print("Word \"{}\" found in line {}".format(word_task_end, i + 1))
-                word_loc_task_end = i+1
-            if task_predecessor_id in line:
-                #print("Word \"{}\" found in line {}".format(task_predecessor_id, i + 1))
-                task_predecessor_start = i+1
-            if task_predecessor_end in line:
-                #print("Word \"{}\" found in line {}".format(task_predecessor_end, i + 1))
-                task_predecessor_end_count = i+1
-
-        print('<< FINISHED : Reading Line Numbers for Each Record Set : WBSID, TASKID, TASKPRED >>')
-    except (Exception) as error:
-        print(error)
-    except (IOError) as ioe:
-        print(ioe)
+        for i, line in enumerate(reader):
+            if table_id == line:  # or word in line.split() to search for full words
+                table_start = i + 1
+            if line and line != table_id and table_end_identifier == line[0] + line[1] and table_start != 0:
+                table_end = i + 1
+                break
+    f.close()
+    return(table_start, table_end)
 
 # This function reads the bundle based data based on the starting and ending location
 # obtained from the above.
@@ -131,11 +104,10 @@ def ReadWriteWBSID():
     try:
         print('<< Reading Records for  : WBSID - ReadWriteWBSID() >>')
         row = []
+        (wbs_tab_start, wbs_tab_end) = getTableStartAndEndPositions(wbs_tab_id)
         # now write the wbs_id data into a file with starting and ending line numbers
         with open(infile, 'r') as f:
-            # read the lines from the xer file line by line
-            # starting from the locations obtained above
-            for line in f.readlines()[word_loc_wbs_id:word_loc_wbs_id_end-1]:
+            for line in f.readlines()[wbs_tab_start:wbs_tab_end-1]:
                 row.append([line])
                 for i in line.split(","): # split the lines based on comma
                     row[-1].append(i)
@@ -165,11 +137,12 @@ def ReadWriteTaskPredecessor():
     try:
         print('<< Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
         row = []
+        (task_predecessor_start, task_predecessor_end) = getTableStartAndEndPositions(task_predecessor_id)
         # now write the wbs_id data into a file with starting and ending line numbers
         with open(infile, 'r') as f:
             # read the lines from the xer file line by line
             # starting from the locations obtained above
-            for line in f.readlines()[task_predecessor_start:task_predecessor_end_count-1]:
+            for line in f.readlines()[task_predecessor_start:task_predecessor_end-1]:
                 row.append([line])
                 for i in line.split(","): # split the lines based on comma
                     row[-1].append(i)
@@ -214,8 +187,10 @@ def ReadwriteTASKS():
         print('<< Reading Records for Task :- ReadwriteTASKS() >>')
         row = []
         wbs_list = []
+        (task_tab_start, task_tab_end) = getTableStartAndEndPositions(task_tab_id)
         with open(infile, 'r') as f:
-            for line in f.readlines()[word_loc_task[0]:word_loc_task[1]-1]:
+
+            for line in f.readlines()[task_tab_start:task_tab_end-1]:
                 #print(line,file=tempOutFile)
                 row.append([line])
                 for i in line.split(","):
@@ -645,11 +620,12 @@ def insertActivity():
         # first remove empty list from result_data i.e, if there are empty rows in the excel
         totalRec = len(final_task_list)
 
+        localProjectID = ProjectID
         for i in range(1, totalRec):
             local_list = []
             LactID = []
 
-            localProjectID = ProjectID[0]
+
             activityId_temp = final_task_list[i][0]
             activity_taskCode = final_task_list[i][16]
 
