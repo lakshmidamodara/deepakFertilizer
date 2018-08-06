@@ -18,7 +18,7 @@ BEGIN
 	SELECT id INTO STRICT l_id
 	FROM public.activity_data AS p
 	WHERE
-		UPPER(p.activity_id) IS NOT DISTINCT FROM UPPER(p_activity_id)
+		p.activity_id IS NOT DISTINCT FROM p_activity_id
 		AND p.date IS NOT DISTINCT FROM p_date
 		AND p.actual_hours IS NOT DISTINCT FROM p_actual_hours
 		AND p.actual_units IS NOT DISTINCT FROM p_actual_units
