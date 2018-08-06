@@ -40,7 +40,7 @@ class ErrorOccured(RuntimeError):
 
 ## Read the streamed excel file
 #print(datetime.datetime.today())
-
+print(datetime.now(),': ------------Starting Parser program -----------------')
 global Filepath
 out_Filepath = 'c:\\temp\\deepak\\'
 in_filepath = 'c:\\temp\\deepak\\'
@@ -50,6 +50,7 @@ tempOutFile = open(out_Filepath + 'output.txt','w')
 actvity_txtFile = open(out_Filepath +'activity_data.txt','w')
 
 global ProjectID
+ProjectID = 0
 global clientProjectID
 
 #offile=open(outfile,"wb")
@@ -87,7 +88,7 @@ def getTableStartAndEndPositions(table_id):
         # read the lines from the xer file line by line
         # starting from the locations obtained above
         reader = f.read().split("\n")
-        print('<< Reading Line Numbers for Each Record Set : WBSID >>')
+        print(datetime.now(),'<< Reading Line Numbers for Each Record Set : WBSID >>')
 
         for i, line in enumerate(reader):
             if table_id == line:  # or word in line.split() to search for full words
@@ -102,7 +103,7 @@ def getTableStartAndEndPositions(table_id):
 # obtained from the above.
 def ReadWriteWBSID():
     try:
-        print('<< Reading Records for  : WBSID - ReadWriteWBSID() >>')
+        print(datetime.now(),'<< Reading Records for  : WBSID - ReadWriteWBSID() >>')
         row = []
         (wbs_tab_start, wbs_tab_end) = getTableStartAndEndPositions(wbs_tab_id)
         # now write the wbs_id data into a file with starting and ending line numbers
@@ -125,17 +126,17 @@ def ReadWriteWBSID():
         f.close()
         myfile.close()
         del row
-        print("----- Final WBS List ------------------", file=tempOutFile)
+        print(datetime.now(),"----- Final WBS List ------------------", file=tempOutFile)
         print(final_wbs_list,file=tempOutFile)
-        print('<< FINISHED: Reading Records for  : WBSID - ReadWriteWBSID() >>')
+        print(datetime.now(),'<< FINISHED: Reading Records for  : WBSID - ReadWriteWBSID() >>')
     except (Exception) as error:
-        print(error)
+        print(datetime.now(),error)
 
 # This function reads the Task predecessor data based on the starting and ending location
 # obtained from the above.
 def ReadWriteTaskPredecessor():
     try:
-        print('<< Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
+        print(datetime.now(),'<< Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
         row = []
         (task_predecessor_start, task_predecessor_end) = getTableStartAndEndPositions(task_predecessor_id)
         # now write the wbs_id data into a file with starting and ending line numbers
@@ -160,11 +161,11 @@ def ReadWriteTaskPredecessor():
         f.close()
         myfile.close()
         del row
-        print('---------- Task Predecessor List ------------',file=tempOutFile)
-        print(task_predecessor,file=tempOutFile)
-        print('<< FINISHED: Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
+        print(datetime.now(),'---------- Task Predecessor List ------------',file=tempOutFile)
+        print(datetime.now(),task_predecessor,file=tempOutFile)
+        print(datetime.now(),'<< FINISHED: Reading Records for Task Dependencies :- ReadWriteTaskPredecessor() >>')
     except (Exception) as error:
-        print(error)
+        print(datetime.now(),error)
 
 # this function is called from ReadWriteTaskPredecessor()
 # this function creates a list for task predecessor
@@ -177,14 +178,14 @@ def createTaskPredecessorList(txt):
             local_task_pred_list.append(row[3])
             task_predecessor.append(local_task_pred_list)
     except (Exception) as error:
-        print('Error thrown in createTaskPredecessorList() :', error)
+        print(datetime.now(),'Error thrown in createTaskPredecessorList() :', error)
 
 
 # This function reads the activity based data based on the starting and ending location
 # obtained from the above.
 def ReadwriteTASKS():
     try:
-        print('<< Reading Records for Task :- ReadwriteTASKS() >>')
+        print(datetime.now(),'<< Reading Records for Task :- ReadwriteTASKS() >>')
         row = []
         wbs_list = []
         (task_tab_start, task_tab_end) = getTableStartAndEndPositions(task_tab_id)
@@ -207,16 +208,16 @@ def ReadwriteTASKS():
 
         f.close()
         myfile.close()
-        print("----- Final Task List ------------------", file=tempOutFile)
+        print(datetime.now(),"----- Final Task List ------------------", file=tempOutFile)
         print(final_task_list, file=tempOutFile)
-        print('<< FINISHED: Reading Records for Task :- ReadwriteTASKS() >>')
+        print(datetime.now(),'<< FINISHED: Reading Records for Task :- ReadwriteTASKS() >>')
     except (Exception, ErrorOccured) as error:
-        print(error)
+        print(datetime.now(),error)
 
 
 def createPhases():
     try:
-        print('<< Creating PHASES LIST :- createPhases() >>')
+        print(datetime.now(),'<< Creating PHASES LIST :- createPhases() >>')
         global phaseID_data
         local_phaseID_data = []
         row = []
@@ -234,30 +235,30 @@ def createPhases():
             local_phaseID_data.append(row)
 
         phaseID_data = [x for x in local_phaseID_data if x]
-        print('-----Phases Final list -------------',file=tempOutFile)
-        print(phaseID_data,file=tempOutFile)
+        print(datetime.now(),'-----Phases Final list -------------',file=tempOutFile)
+        print(datetime.now(),phaseID_data,file=tempOutFile)
 
         # delete all the lists and variables from memory
         del row
         del local_phaseID_data
         del local_client_projID
-        print('<< FINISHED: Creating PHASES LIST :- createPhases() >>')
+        print(datetime.now(),'<< FINISHED: Creating PHASES LIST :- createPhases() >>')
     except (Exception) as error:
-        print('Error in createPhases() %s:' %error)
+        print(datetime.now(),'Error in createPhases() %s:' %error)
 
 
 def insertPhases():
     try:
-        print('<< INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
+        print(datetime.now(),'<< INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
         # first read the phaseID_data []
         # then start inserting items into the phases table
         # get database connection
         db_conn = dbu.getConn()
-        print("-------Writing PHASES Data to PHASES Table --------------------", file=tempOutFile)
+        print(datetime.now(),"-------Writing PHASES Data to PHASES Table --------------------", file=tempOutFile)
         for i in range(0, len(phaseID_data)):
             lPhaseName = phaseID_data[i][1]
             lPhaseID = phaseID_data[i][0]
-            print("----- INSERT Statements for Phases ------------------", file=tempOutFile)
+            print(datetime.now(),"----- INSERT Statements for Phases ------------------", file=tempOutFile)
             execSQL = ('insert_phases_data')
             execData = (lPhaseName,None,None,None,None,ProjectID,None,None)
             print(execSQL, execData, file=tempOutFile)
@@ -266,9 +267,9 @@ def insertPhases():
             phases_dict.update({lPhaseID: lCurrentPhaseID})
 
         #print('Phases Dictionary :', phases_dict)
-        print('<< FINISHED: INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
+        print(datetime.now(),'<< FINISHED: INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
     except (Exception) as error:
-        print('Error in insertPhases() %s:' %error)
+        print(datetime.now(),'Error in insertPhases() %s:' %error)
 
 
 
@@ -283,7 +284,7 @@ def insertPhases():
 # if TotalWorkDays is 6, then dates between monday to saturday is generated.
 def expandDates():
     try:
-        print('<< EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
+        print(datetime.now(),'<< EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
         if (len(expand_dates_list)) == 0:
             raise ErrorOccured("Empty result List")
 
@@ -295,12 +296,12 @@ def expandDates():
         totalRecords = len(expand_dates_list)
         #counter=0
         print("\n",file=actvity_txtFile)
-        print("#### Printing insert query for activity_data ######", file=actvity_txtFile)
+        print(datetime.now(),"#### Printing insert query for activity_data ######", file=actvity_txtFile)
 
         ## Truncate temp.activity_data. We will insert rows into this table
         ## and then call a stored function to transfer them into activity_data table
-        #execSQL = "TRUNCATE TABLE activity_data"
-        #dbu.executeQuery(db_conn, execSQL)
+        execSQL = "TRUNCATE TABLE activity_data"
+        dbu.executeQuery(db_conn, execSQL)
 
         for i in range(0,totalRecords):
             activityN = expand_dates_list[i][0]
@@ -313,7 +314,8 @@ def expandDates():
             dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
 
             for d in dd:
-                execSQL = ('insert_activity_data_data')
+                #execSQL = ('insert_activity_data_data')
+                execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
                 # get the weekday
                 wDay = getDayofWeek(d)
                 dstat = checkIfHoliday(d)
@@ -323,42 +325,54 @@ def expandDates():
                     if dstat == 'w': # if its not a holiday
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4: #monday - friday
                             # activities table insert
-                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            execData = (activityN, d, planned_hours)
+                            dbu.executeQueryWithData(db_conn, execSQL, execData)
                             print(execSQL, execData,file=actvity_txtFile)
                             #counter = counter + 1 #comment this line in production
                         elif wDay == 5 or wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
                             planned_hours = None
-                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            execData = (activityN, d, planned_hours)
+                            dbu.executeQueryWithData(db_conn, execSQL, execData)
                             print(execSQL, execData, file=actvity_txtFile)
                             #counter = counter + 1  # comment this line in production
                     elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
                         planned_hours = None
-                        execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                        l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                        #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                        #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                        execData = (activityN, d, planned_hours)
+                        dbu.executeQueryWithData(db_conn, execSQL, execData)
                         print(execSQL, execData, file=actvity_txtFile)
                 elif tWdays == '6': # if its a 6 day work week : monday to Saturday
                     if dstat == 'w':
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4 or wDay == 5:
-                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            execData = (activityN, d, planned_hours)
+                            dbu.executeQueryWithData(db_conn, execSQL, execData)
                             print(execSQL, execData,file=f)
                             #counter = counter + 1  #comment this line in production
                         elif wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
                             planned_hours = None
-                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            execData = (activityN, d, planned_hours)
+                            dbu.executeQueryWithData(db_conn, execSQL, execData)
                             print(execSQL, execData, file=actvity_txtFile)
                     elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
                         planned_hours = None
-                        execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                        l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                        #execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                        #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                        execData = (activityN, d, planned_hours)
+                        dbu.executeQueryWithData(db_conn, execSQL, execData)
                         print(execSQL, execData, file=actvity_txtFile)
 
-        print('<< FINISHED : EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
+        print(datetime.now(),'<< FINISHED : EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
     except (Exception) as error:
-        print("Error in expandDates(): %s" %error)
+        print(datetime.now(),"Error in expandDates(): %s" %error)
         print(sys.exc_traceback.tb_lineno)
     except (ErrorOccured) as e:
         print(e.Message)
@@ -375,7 +389,7 @@ def checkIfHoliday(dDate):
             dayStatus = 'w'
             return dayStatus
     except (Exception) as error:
-        print("Error in checkIfHoliday() %s" %error)
+        print(datetime.now(),"Error in checkIfHoliday() %s" %error)
 
 # this function accepts the date as an argument
 # and returns the day of the date. Mon =1, tue=2, wed=3 ....sat=6, sun=0
@@ -386,14 +400,14 @@ def getDayofWeek(ddDate):
         wkday = calendar.weekday(ddDate.year, ddDate.month, ddDate.day)
         return wkday
     except (Exception) as error:
-        print("Error in getDayofWeek(): %s" %error)
+        print(datetime.now(),"Error in getDayofWeek(): %s" %error)
 
 
 # This function reads the list of holidays from the holidays table and
 # populates the holiday_data list
 def readHolidays():
     try:
-        print('<< READING HOLIDAYS Table :- readHolidays() >>')
+        print(datetime.now(),'<< READING HOLIDAYS Table :- readHolidays() >>')
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT holiday from holidays"
@@ -405,9 +419,9 @@ def readHolidays():
                dtDate = row[0].strftime('%Y-%m-%d')
                holiday_data.append(dtDate)
 
-        print('<< FINISHED: READING HOLIDAYS Table :- readHolidays() >>')
+        print(datetime.now(),'<< FINISHED: READING HOLIDAYS Table :- readHolidays() >>')
     except (Exception) as error:
-        print ("Error in readHolidayExcel(): %s" %error)
+        print (datetime.now(),"Error in readHolidayExcel(): %s" %error)
     except (ErrorOccured) as e:
         print (e)
 
@@ -507,7 +521,7 @@ def replaceSingleQuotes_TASK(txt):
 # This function is called from insertProjectData()
 def getProjectID():
     try:
-        print('<< Getting ProjectID from InputDataFile : getProjectID() >>')
+        print(datetime.now(),'<< Getting ProjectID from InputDataFile : getProjectID() >>')
         global ProjectID
         global clientProjectID
         #first get the project name and check if project exists
@@ -518,9 +532,9 @@ def getProjectID():
             ProjectID = insertProjectData(local_project_name)[0]
         #elif IsProjectFlag == 'N':
         #    # Go through the final_wbs_list and find the project Node flag
-        print('<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
+        print(datetime.now(),'<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
     except (Exception) as error:
-        print ("Error in reading Project Table(): %s" %error)
+        print (datetime.now(),"Error in reading Project Table(): %s" %error)
 
 # This function is run initially to make sure that project data is available in the
 # projects table. If project is not present, then it inserts the project data.
@@ -528,7 +542,7 @@ def getProjectID():
 # functions to use them
 def insertProjectData(prjName):
     try:
-        print('<< Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
+        print(datetime.now(),'<< Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT ID from PROJECTS WHERE NAME='%s'" %prjName
@@ -537,16 +551,16 @@ def insertProjectData(prjName):
         if len(m_row) >0:
             return m_row[0]
         else:
-            print("----- INSERT Statements for New Project ------------------", file=tempOutFile)
+            print(datetime.now(),"----- INSERT Statements for New Project ------------------", file=tempOutFile)
             execSQL = ('insert_project_data')
             execData = (prjName, None, None, None,None,None, None, None)
             print(execSQL,execData,file=tempOutFile)
             prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
             print(prjID)
             return prjID
-        print('<< FINISHED: Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
+        print(datetime.now(),'<< FINISHED: Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
-        print("Database Error %s " % error)
+        print(datetime.now(),"Database Error %s " % error)
         raise
 
 # This function inserts the values into the bundles table.
@@ -555,11 +569,12 @@ def insertProjectData(prjName):
 # db bundle id
 def insertBundlesData():
     try:
-        print('<< INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
+        global ProjectID
+        print(datetime.now(),'<< INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
         # get database connection
         db_conn = dbu.getConn()
         lParentBundleID = None
-        print("-------Writing WBS Data to Bundles Table --------------------",file=tempOutFile)
+        print(datetime.now(),"-------Writing WBS Data to Bundles Table --------------------",file=tempOutFile)
         for i in range (0, len(final_wbs_list)):
             lPhaseID = None
             local_bundle_list = []
@@ -576,7 +591,7 @@ def insertBundlesData():
             #if lBundleID in phases_dict:
             #    lPhaseID = phases_dict[lBundleID]
 
-            print("----- INSERT Statements for Bundles ------------------", file=tempOutFile)
+            print(datetime.now(),"----- INSERT Statements for Bundles ------------------", file=tempOutFile)
             execSQL = ('insert_bundles_data')
             execData = (lParentBundleID,lBundleName,ProjectID,None,lPhaseID)
             print(execSQL, execData,file=tempOutFile)
@@ -601,20 +616,20 @@ def insertBundlesData():
             #    print(execSQL, execData, file=tempOutFile)
             #    dbu.executeQueryWithData(db_conn, execSQL, execData)
 
-        print('-------------Bundle List ----------------------',file=tempOutFile)
+        print(datetime.now(),'-------------Bundle List ----------------------',file=tempOutFile)
         print(bundle_list,file=tempOutFile)
 
-        print('-------------Bundle Dictionary ----------------------', file=tempOutFile)
+        print(datetime.now(),'-------------Bundle Dictionary ----------------------', file=tempOutFile)
         print(bundle_dict, file=tempOutFile)
-        print('<< FINISHED: INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
+        print(datetime.now(),'<< FINISHED: INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
-        print("Database Error in insertBundlesData() %s " % error)
+        print(datetime.now(),"Database Error in insertBundlesData() %s " % error)
         raise
 
 # This function inserts the values into the Activity, Activity_bundles table
 def insertActivity():
     try:
-        print('<< INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
+        print(datetime.now(),'<< INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
         # first remove empty list from result_data i.e, if there are empty rows in the excel
@@ -656,7 +671,7 @@ def insertActivity():
             if plannedEndDate == "":
                 plannedEndDate = None
 
-            print("----- INSERT Statements for activities() ------------------", file=tempOutFile)
+            print(datetime.now(),"----- INSERT Statements for activities() ------------------", file=tempOutFile)
             execSQL = ('insert_activities_data')
             execData = (activityName,None,None,None,None,phaseID_activityID,localProjectID,total_planned_units,
                         plannedStDate,plannedEndDate, None,actualStDate,actualEndDate,None,None,activity_taskCode,
@@ -682,7 +697,7 @@ def insertActivity():
             db_BundleID = bundle_dict.get(bundleID)
 
             # Bundle activities table insert
-            print("----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
+            print(datetime.now(),"----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
             execSQL = ('insert_bundle_activities_data')
             execData = (db_BundleID, lCurrentActivityID)
             print(execSQL, execData, file=tempOutFile)
@@ -690,7 +705,7 @@ def insertActivity():
 
         print('-------- Task Predecessor List -------------')
         print(activityID_clientActivityID, file=tempOutFile)
-        print('<< FINISHED: INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
+        print(datetime.now(),'<< FINISHED: INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
     except(Exception) as error:
         print("Error in insertActivity:%s" %error)
     except (psycopg2) as dberror:
@@ -700,7 +715,7 @@ def insertActivity():
 # this function calls the findActivityIDForGivenClientTaskID() to get the db_ActivityID
 def insertActivityPredecessor():
     try:
-        print('<< INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
+        print(datetime.now(),'<< INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
         print(len(task_predecessor))
@@ -713,7 +728,7 @@ def insertActivityPredecessor():
                 execData = (activityID, activityID_Pred)
                 print(execSQL, execData, file=tempOutFile)
                 l_id=dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
-        print('<< FINISHED: INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
+        print(datetime.now(),'<< FINISHED: INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
     except (Exception) as error:
         print('Error in insertActivityPredecessor()', error)
 
@@ -775,7 +790,7 @@ def createActivityPhases():
         # all grouped together based on db_phaseID which is the first element in
         # key_value_list[]
 
-        print('--------------- PhaseID with TaskID and WBS_ID--------------------',file=tempOutFile)
+        print(datetime.now(),'--------------- PhaseID with TaskID and WBS_ID--------------------',file=tempOutFile)
         print(key_value_list,file=tempOutFile)
 
         #findPhaseValue('1010190')
@@ -825,7 +840,7 @@ def createMileStone():
                 activity_milestone.append(final_task_list[i][0])
 
         print("\\n",file=tempOutFile)
-        print('----------MileStone Activities ---------------', file=tempOutFile)
+        print(datetime.now(),'----------MileStone Activities ---------------', file=tempOutFile)
         print(activity_milestone,file=tempOutFile)
 
     except (Exception) as error:
@@ -846,5 +861,5 @@ insertActivity()
 insertActivityPredecessor()
 expandDates()
 
-print('---- PROGRAM ENDED ----')
+print(datetime.now(),'---- PROGRAM ENDED ----')
 # -- End of Program ---#
