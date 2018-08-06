@@ -82,7 +82,7 @@ CREATE TABLE activity_data (
     activity_id integer NOT NULL,
     "date" "date",
     actual_hours integer,
-    actual_units integer,
+    actual_units double precision,
     planned_hours bigint,
     planned_units double precision,
     updated timestamp without time zone,
@@ -686,12 +686,12 @@ ALTER SEQUENCE new_table_1_id_seq OWNED BY issue_statuses.id;
 --
 
 CREATE TABLE phases (
+	id integer NOT NULL,
     name text,
     scheduled_start date,
-    scheduled_end text,
-    actual_start text,
+    scheduled_end date,
+    actual_start date,
     actual_end date,
-    id smallint NOT NULL,
     project_id integer,
     planned_start date,
     planned_end date
@@ -795,7 +795,7 @@ CREATE TABLE procurements (
 --
 
 CREATE TABLE projects (
-    id integer DEFAULT nextval(('public.projects_id_seq'::text)::regclass) NOT NULL,
+    id integer  NOT NULL,
     name text,
     start date,
     "end" date,
@@ -817,6 +817,8 @@ CREATE SEQUENCE projects_id_seq
     NO MINVALUE
     MAXVALUE 2147483647
     CACHE 1;
+	
+ALTER TABLE ONLY projects ALTER COLUMN id SET DEFAULT nextval('projects_id_seq'::regclass);
 
 
 --
@@ -2456,8 +2458,6 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
 GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
-
-
 
 
 --
