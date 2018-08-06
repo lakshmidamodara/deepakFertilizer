@@ -299,8 +299,8 @@ def expandDates():
 
         ## Truncate temp.activity_data. We will insert rows into this table
         ## and then call a stored function to transfer them into activity_data table
-        execSQL = "TRUNCATE TABLE activity_data"
-        dbu.executeQuery(db_conn, execSQL)
+        #execSQL = "TRUNCATE TABLE activity_data"
+        #dbu.executeQuery(db_conn, execSQL)
 
         for i in range(0,totalRecords):
             activityN = expand_dates_list[i][0]
@@ -313,47 +313,47 @@ def expandDates():
             dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
 
             for d in dd:
-                execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
+                execSQL = ('insert_activity_data_data')
                 # get the weekday
                 wDay = getDayofWeek(d)
                 dstat = checkIfHoliday(d)
                 planned_hours = 8
+                dt = datetime.date(d)
                 if tWdays == '5': # if its a 5 day work week
                     if dstat == 'w': # if its not a holiday
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4: #monday - friday
                             # activities table insert
-                            execData = (activityN, d,planned_hours)
-                            dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                             print(execSQL, execData,file=actvity_txtFile)
                             #counter = counter + 1 #comment this line in production
                         elif wDay == 5 or wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
                             planned_hours = None
-                            execData = (activityN, d, planned_hours)
-                            dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                             print(execSQL, execData, file=actvity_txtFile)
                             #counter = counter + 1  # comment this line in production
                     elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
                         planned_hours = None
-                        execData = (activityN, d, planned_hours)
-                        dbu.executeQueryWithData(db_conn, execSQL, execData)
+                        execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                        l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                         print(execSQL, execData, file=actvity_txtFile)
                 elif tWdays == '6': # if its a 6 day work week : monday to Saturday
                     if dstat == 'w':
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4 or wDay == 5:
-                            execData = (activityN, d, planned_hours)
-                            dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                             print(execSQL, execData,file=f)
                             #counter = counter + 1  #comment this line in production
                         elif wDay == 6: # if it is a saturday or sunday, insert a NONE for the planned hours
                             planned_hours = None
-                            execData = (activityN, d, planned_hours)
-                            dbu.executeQueryWithData(db_conn, execSQL, execData)
+                            execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                            l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                             print(execSQL, execData, file=actvity_txtFile)
                     elif dstat == 'h': # if it is a holiday, insert a NONE for the planned hours
                         planned_hours = None
-                        execData = (activityN, d, planned_hours)
-                        dbu.executeQueryWithData(db_conn, execSQL, execData)
-
+                        execData = (activityN, dt, None, None, None, planned_hours, None, None)
+                        l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                         print(execSQL, execData, file=actvity_txtFile)
 
         print('<< FINISHED : EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
@@ -515,7 +515,7 @@ def getProjectID():
         local_project_name = final_wbs_list[0][1]
         IsProjectFlag = final_wbs_list[0][3]
         if IsProjectFlag == 'Y':
-            ProjectID = insertProjectData(local_project_name)
+            ProjectID = insertProjectData(local_project_name)[0]
         #elif IsProjectFlag == 'N':
         #    # Go through the final_wbs_list and find the project Node flag
         print('<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
@@ -625,7 +625,6 @@ def insertActivity():
             local_list = []
             LactID = []
 
-
             activityId_temp = final_task_list[i][0]
             activity_taskCode = final_task_list[i][16]
 
@@ -684,10 +683,10 @@ def insertActivity():
 
             # Bundle activities table insert
             print("----- INSERT Statements for BUNDLE_ACTIVITIES ------------------", file=tempOutFile)
-            execSQL = "INSERT INTO BUNDLE_ACTIVITIES (ACTIVITY_ID,BUNDLE_ID) VALUES (%s,%s);"
-            execData = (lCurrentActivityID, db_BundleID)
+            execSQL = ('insert_bundle_activities_data')
+            execData = (db_BundleID, lCurrentActivityID)
             print(execSQL, execData, file=tempOutFile)
-            dbu.executeQueryWithData(db_conn, execSQL, execData)
+            dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
 
         print('-------- Task Predecessor List -------------')
         print(activityID_clientActivityID, file=tempOutFile)
@@ -708,11 +707,12 @@ def insertActivityPredecessor():
         for i in range(0, len(task_predecessor)):
             activityID = findActivityIDForGivenClientTaskID(task_predecessor[i][0])
             activityID_Pred = findActivityIDForGivenClientTaskID(task_predecessor[i][1])
-            print("----- INSERT Statements for ACTIVITY DEPENDENCIES ------------------", file=tempOutFile)
-            execSQL = "INSERT INTO ACTIVITY_DEPENDENCIES (ACTIVITY_ID,REQUIRED_ACTIVITY_ID) VALUES (%s,%s);"
-            execData = (activityID, activityID_Pred)
-            print(execSQL, execData, file=tempOutFile)
-            dbu.executeQueryWithData(db_conn, execSQL, execData)
+            if activityID_Pred != None:
+                print("----- INSERT Statements for ACTIVITY DEPENDENCIES ------------------", file=tempOutFile)
+                execSQL = ('insert_activity_dependencies_data')
+                execData = (activityID, activityID_Pred)
+                print(execSQL, execData, file=tempOutFile)
+                l_id=dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
         print('<< FINISHED: INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
     except (Exception) as error:
         print('Error in insertActivityPredecessor()', error)
