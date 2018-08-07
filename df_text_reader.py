@@ -300,7 +300,14 @@ def expandDates():
 
         ## Truncate temp.activity_data. We will insert rows into this table
         ## and then call a stored function to transfer them into activity_data table
-        execSQL = "TRUNCATE TABLE activity_data"
+        #execSQL = "TRUNCATE TABLE activity_data"
+
+        #dbu.executeQuery(db_conn, execSQL)
+        # delete existing rows for the current project
+        execSQL = """delete from activity_data ad 
+                              using activities a where ad.activity_id = a.id 
+                              and a.project_id = '{id}';"""
+        execSQL = execSQL.format(id=ProjectID)
         dbu.executeQuery(db_conn, execSQL)
 
         for i in range(0,totalRecords):
@@ -313,8 +320,15 @@ def expandDates():
             # and insert into the activities_data table
             dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
 
+            #execSQL = "delete from activity_data where activity_id = %s"
+            #execData = (activityN,)
+            #dbu.executeQueryWithData(db_conn, execSQL, execData)
+
+
             for d in dd:
                 #execSQL = ('insert_activity_data_data')
+                # delete existing rows
+
                 execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
                 # get the weekday
                 wDay = getDayofWeek(d)
