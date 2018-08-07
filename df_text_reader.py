@@ -71,13 +71,14 @@ bundle_list = []
 expand_dates_list = []
 bundle_dict = {}
 holiday_data = []
-global phaseID_data, key_value_list, activity_milestone, task_predecessor, activityID_clientActivityID
+global phaseID_data, key_value_list, activity_milestone, task_predecessor, activityID_clientActivityID,holidayFlag
 phaseID_data = []
 phases_dict = {}
 key_value_list = []
 activity_milestone = []
 task_predecessor = []
 activityID_clientActivityID = []
+holidayFlag = 1
 
 # This function opens the input xer file and locates the various section of the data
 # wbs - bundles, tasks - activities etc..
@@ -217,6 +218,10 @@ def ReadwriteTASKS():
 
 def createPhases():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(final_wbs_list)) == 0:
+            raise ErrorOccured("Empty final_wbs_list in function createPhases")
+
         print(datetime.now(),'<< Creating PHASES LIST :- createPhases() >>')
         global phaseID_data
         local_phaseID_data = []
@@ -243,12 +248,16 @@ def createPhases():
         del local_phaseID_data
         del local_client_projID
         print(datetime.now(),'<< FINISHED: Creating PHASES LIST :- createPhases() >>')
-    except (Exception) as error:
+    except (Exception,ErrorOccured) as error:
         print(datetime.now(),'Error in createPhases() %s:' %error)
 
 
 def insertPhases():
     try:
+        # First check to make sure the phasesID_Data[] is not empty
+        if (len(phaseID_data)) == 0:
+            raise ErrorOccured("Empty phaseID_Data[] in function insertPhases")
+
         print(datetime.now(),'<< INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
         # first read the phaseID_data []
         # then start inserting items into the phases table
@@ -268,7 +277,7 @@ def insertPhases():
 
         #print('Phases Dictionary :', phases_dict)
         print(datetime.now(),'<< FINISHED: INSERTING PHASES DATA in PHASES TABLE :- insertPhases() >>')
-    except (Exception) as error:
+    except (Exception,ErrorOccured) as error:
         print(datetime.now(),'Error in insertPhases() %s:' %error)
 
 
@@ -301,12 +310,10 @@ def expandDates():
         ## Truncate temp.activity_data. We will insert rows into this table
         ## and then call a stored function to transfer them into activity_data table
         #execSQL = "TRUNCATE TABLE activity_data"
-
         #dbu.executeQuery(db_conn, execSQL)
-        # delete existing rows for the current project
         execSQL = """delete from activity_data ad 
-                              using activities a where ad.activity_id = a.id 
-                              and a.project_id = '{id}';"""
+                                      using activities a where ad.activity_id = a.id 
+                                      and a.project_id = '{id}';"""
         execSQL = execSQL.format(id=ProjectID)
         dbu.executeQuery(db_conn, execSQL)
 
@@ -320,19 +327,14 @@ def expandDates():
             # and insert into the activities_data table
             dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
 
-            #execSQL = "delete from activity_data where activity_id = %s"
-            #execData = (activityN,)
-            #dbu.executeQueryWithData(db_conn, execSQL, execData)
-
-
             for d in dd:
                 #execSQL = ('insert_activity_data_data')
-                # delete existing rows
-
                 execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
                 # get the weekday
                 wDay = getDayofWeek(d)
-                dstat = checkIfHoliday(d)
+                dstat = 'w'
+                if holidayFlag == 1:
+                    dstat = checkIfHoliday(d)
                 planned_hours = 8
                 dt = datetime.date(d)
                 if tWdays == '5': # if its a 5 day work week
@@ -421,11 +423,19 @@ def getDayofWeek(ddDate):
 # populates the holiday_data list
 def readHolidays():
     try:
+        global holidayFlag
         print(datetime.now(),'<< READING HOLIDAYS Table :- readHolidays() >>')
         # get database connection
         db_conn = dbu.getConn()
         stProc = "SELECT holiday from holidays"
         m_row = dbu.executeQueryRes(db_conn, stProc)
+
+        # if there is no data in holidays[], then set the holidayFlag = 0
+        # Once the global flag is set, then the expand dates
+        # will not call this function for each date value
+        if len(m_row) == 0:
+            print('--There was no Holiday Data ----- ', file=tempOutFile)
+            holidayFlag = 0
 
         # Reading the data fetched from the database
         for row in m_row:
@@ -535,6 +545,10 @@ def replaceSingleQuotes_TASK(txt):
 # This function is called from insertProjectData()
 def getProjectID():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(final_wbs_list)) == 0:
+            raise ErrorOccured("Empty final_wbs_list in getProjectID")
+
         print(datetime.now(),'<< Getting ProjectID from InputDataFile : getProjectID() >>')
         global ProjectID
         global clientProjectID
@@ -543,11 +557,15 @@ def getProjectID():
         local_project_name = final_wbs_list[0][1]
         IsProjectFlag = final_wbs_list[0][3]
         if IsProjectFlag == 'Y':
-            ProjectID = insertProjectData(local_project_name)[0]
+            ProjectID = insertProjectData(local_project_name)
+            if type(ProjectID) == tuple: # if the project id already exists, then a tuple is returned
+                ProjectID = ProjectID[0] # so we need to extract the 0th element of the tuple as int
+                print('Project ID:', type(ProjectID))
+
         #elif IsProjectFlag == 'N':
         #    # Go through the final_wbs_list and find the project Node flag
         print(datetime.now(),'<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
-    except (Exception) as error:
+    except (Exception,ErrorOccured) as error:
         print (datetime.now(),"Error in reading Project Table(): %s" %error)
 
 # This function is run initially to make sure that project data is available in the
@@ -570,7 +588,6 @@ def insertProjectData(prjName):
             execData = (prjName, None, None, None,None,None, None, None)
             print(execSQL,execData,file=tempOutFile)
             prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
-            print(prjID)
             return prjID
         print(datetime.now(),'<< FINISHED: Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
@@ -583,6 +600,10 @@ def insertProjectData(prjName):
 # db bundle id
 def insertBundlesData():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(final_wbs_list)) == 0:
+            raise ErrorOccured("Empty final_wbs_list in function insertBundlesData()")
+
         global ProjectID
         print(datetime.now(),'<< INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
         # get database connection
@@ -636,13 +657,17 @@ def insertBundlesData():
         print(datetime.now(),'-------------Bundle Dictionary ----------------------', file=tempOutFile)
         print(bundle_dict, file=tempOutFile)
         print(datetime.now(),'<< FINISHED: INSERTING BUNDLES DATA in BUNDLES table: insertBundlesData() >>')
-    except (Exception, psycopg2.DatabaseError) as error:
+    except (Exception, psycopg2.DatabaseError,ErrorOccured) as error:
         print(datetime.now(),"Database Error in insertBundlesData() %s " % error)
         raise
 
 # This function inserts the values into the Activity, Activity_bundles table
 def insertActivity():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(final_task_list)) == 0:
+            raise ErrorOccured("Empty final_task_list in function insertActivity()")
+
         print(datetime.now(),'<< INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
@@ -720,7 +745,7 @@ def insertActivity():
         print('-------- Task Predecessor List -------------')
         print(activityID_clientActivityID, file=tempOutFile)
         print(datetime.now(),'<< FINISHED: INSERTING ACTIVITIES DATA in ACTIVITIES table: insertActivity() >>')
-    except(Exception) as error:
+    except(Exception,ErrorOccured) as error:
         print("Error in insertActivity:%s" %error)
     except (psycopg2) as dberror:
         print(dberror)
@@ -729,6 +754,10 @@ def insertActivity():
 # this function calls the findActivityIDForGivenClientTaskID() to get the db_ActivityID
 def insertActivityPredecessor():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(task_predecessor)) == 0:
+            raise ErrorOccured("Empty task_predecessor[] in function insertActivityPredecessor()")
+
         print(datetime.now(),'<< INSERTING ACTIVITIY DEPENDENVY DATA in ACTIVITY_DEPENDENCIES table: insertActivityPredecessor() >>')
         print("\n", file=tempOutFile)
         db_conn = dbu.getConn()
@@ -778,6 +807,9 @@ def createKeyValueListOfPhases():
 
 def createActivityPhases():
     try:
+        # First check to make sure the key_value_list[] is not empty
+        if (len(key_value_list)) == 0:
+            raise ErrorOccured("Empty key_value_list[] in function createActivityPhases()")
 
         # first get the wbs_final_list and task_final_list
         # first create a list of list : key value of dictionary
@@ -843,6 +875,10 @@ def findIfMileStone(val):
 # this data is captured in the final_task_list of item[15]
 def createMileStone():
     try:
+        # First check to make sure the final_wbs_list is not empty
+        if (len(final_task_list)) == 0:
+            raise ErrorOccured("Empty final_task_list in function createMileStone()")
+
         global  activity_milestone
         # get the final_task_list
         for i in range(0,len(final_task_list)):
@@ -857,7 +893,7 @@ def createMileStone():
         print(datetime.now(),'----------MileStone Activities ---------------', file=tempOutFile)
         print(activity_milestone,file=tempOutFile)
 
-    except (Exception) as error:
+    except (Exception,ErrorOccured) as error:
         print('Error in createMileStone():', error)
 
 # Function calls inorder
