@@ -11,7 +11,7 @@
 ------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION insert_bundles_data(p_parent_bundle_id integer, p_name text, 
-                                                  p_project_id integer, p_title text, p_phase_id integer)
+                                                  p_project_id integer, p_title text, p_phase_id integer, p_client_bundle_id text)
 RETURNS INTEGER AS $$
 DECLARE
 	l_bundle_id INTEGER;
@@ -23,14 +23,15 @@ BEGIN
         AND bun.parent_bundle_id IS NOT DISTINCT FROM p_parent_bundle_id 
 		AND bun.project_id IS NOT DISTINCT FROM p_project_id
 		AND bun.title IS NOT DISTINCT FROM p_title
-		AND bun.phase_id IS NOT DISTINCT FROM p_phase_id;
+		AND bun.phase_id IS NOT DISTINCT FROM p_phase_id
+		AND bun.client_bundle_id IS NOT DISTINCT FROM p_client_bundle_id;
 		
 	RETURN l_bundle_id;
 	
 	EXCEPTION
 		WHEN NO_DATA_FOUND THEN
-			INSERT INTO public.bundles (name, parent_bundle_id, project_id, title, phase_id)
-			VALUES (p_name, p_parent_bundle_id, p_project_id, p_title, p_phase_id);
+			INSERT INTO public.bundles (name, parent_bundle_id, project_id, title, phase_id, client_bundle_id)
+			VALUES (p_name, p_parent_bundle_id, p_project_id, p_title, p_phase_id, p_client_bundle_id);
 			return currval('public.bundle_id_seq');
 		WHEN TOO_MANY_ROWS THEN
 			RAISE EXCEPTION 'Found more than one row in bundles for name %', p_name;
