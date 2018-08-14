@@ -615,6 +615,7 @@ def insertBundlesData():
             local_bundle_list = []
             lBundleID = final_wbs_list[i][0]
             lBundleName = final_wbs_list[i][1]
+            lParentBundleID = final_wbs_list[i][2]
 
             # create a list with client_bundleid,bundle_name & database created bundleID
             local_bundle_list.append(lBundleID)
@@ -622,19 +623,28 @@ def insertBundlesData():
             # Get the phaseID from key_value_list : contains db_phaseID, client_taskID, client_bundlesID
             lPhaseID = findPhaseValue(lBundleID)
 
-            #Get the phase id to be inserted into the bundle table from phases_dict
-            #if lBundleID in phases_dict:
-            #    lPhaseID = phases_dict[lBundleID]
+            # First get the parentBundleID from table Bundles
+            # Pass the client_bundle_id and get the bundle_id from table
+            stProc = "SELECT ID FROM BUNDLES WHERE CLIENT_BUNDLE_ID='%s'" %lParentBundleID
+            m_row = dbu.executeQueryRes(db_conn, stProc)
+
+            #First check if the m_row is having value or empty
+            # if it has no value, then the parentBundleID is set to None
+            # Else insert the bundleId of db of the parent
+            if len(m_row) > 0:
+                ParentBundleID = m_row[0]
+            if len(m_row) == 0:
+                ParentBundleID = None
 
             print(datetime.now(),"----- INSERT Statements for Bundles ------------------", file=tempOutFile)
             execSQL = ('insert_bundles_data')
-            execData = (lParentBundleID,lBundleName,ProjectID,None,lPhaseID)
+            execData = (ParentBundleID,lBundleName,ProjectID,None,lPhaseID,lBundleID)
             print(execSQL, execData,file=tempOutFile)
             #print(execSQL, execData)
             # inserting the bundles into the bundles table
             lCurrentBundleID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
             local_bundle_list.append(lCurrentBundleID) # this is the current bundleid from database query
-            lParentBundleID = lCurrentBundleID
+            #lParentBundleID = lCurrentBundleID
             bundle_list.append(local_bundle_list)
             # update the bundle_dictionary which will be read for inserting bundle_activities data
             bundle_dict.update({lBundleID:lCurrentBundleID})
@@ -807,10 +817,6 @@ def createKeyValueListOfPhases():
 
 def createActivityPhases():
     try:
-        # First check to make sure the key_value_list[] is not empty
-        if (len(key_value_list)) == 0:
-            raise ErrorOccured("Empty key_value_list[] in function createActivityPhases()")
-
         # first get the wbs_final_list and task_final_list
         # first create a list of list : key value of dictionary
         # Calling function createKeyValueListOfPhases()
@@ -909,7 +915,7 @@ insertBundlesData()
 createMileStone()
 insertActivity()
 insertActivityPredecessor()
-expandDates()
+#expandDates()
 
 print(datetime.now(),'---- PROGRAM ENDED ----')
 # -- End of Program ---#
