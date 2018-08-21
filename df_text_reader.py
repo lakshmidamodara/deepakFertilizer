@@ -24,6 +24,7 @@ activity_data - contains the activity data
 import sys
 import base64
 import io
+import re
 from datetime import datetime, timedelta
 import calendar
 import db_utilities as dbu
@@ -45,7 +46,12 @@ global Filepath
 out_Filepath = 'c:\\temp\\deepak\\'
 in_filepath = 'c:\\temp\\deepak\\'
 
+#out_Filepath = 'c:\\temp\\uniper\\'
+#in_filepath = 'c:\\temp\\uniper\\'
+
+
 infile = in_filepath + 'df_baseline.xer'
+#infile = in_filepath + 'uniper_baseline.xer'
 tempOutFile = open(out_Filepath + 'output.txt','w')
 actvity_txtFile = open(out_Filepath +'activity_data.txt','w')
 
@@ -85,11 +91,11 @@ holidayFlag = 1
 # This location is then passed on to the functions below for reading the data
 def getTableStartAndEndPositions(table_id):
     table_start = 0
-    with open(infile, 'r') as f:
+    with open(infile, 'r', errors='ignore') as f:
         # read the lines from the xer file line by line
         # starting from the locations obtained above
         reader = f.read().split("\n")
-        print(datetime.now(),'<< Reading Line Numbers for Each Record Set : WBSID >>')
+        print(datetime.now(),'<< Reading Each Record from InputFile and splitting lines>>')
 
         for i, line in enumerate(reader):
             if table_id == line:  # or word in line.split() to search for full words
@@ -108,14 +114,21 @@ def ReadWriteWBSID():
         row = []
         (wbs_tab_start, wbs_tab_end) = getTableStartAndEndPositions(wbs_tab_id)
         # now write the wbs_id data into a file with starting and ending line numbers
-        with open(infile, 'r') as f:
+        with open(infile, 'r', errors='ignore') as f:
             for line in f.readlines()[wbs_tab_start:wbs_tab_end-1]:
                 row.append([line])
-                for i in line.split(","): # split the lines based on comma
+                for i in line.split("\t"): # split the lines based on tab
                     row[-1].append(i)
                     # writing the lines to the external text file
                 with open(out_Filepath + 'wbs_file.txt', "a") as myfile:
-                    wbs_list.append(line.replace('\t',','))
+                    #print(line)
+                    # replace all commas in the element with period(.)
+                    local_string1 = line.replace(',','.')
+                    # replace all tabs with  comma(,) in the element
+                    local_string2 = local_string1.replace('\t',',')
+                    #print(local_string2)
+                    wbs_list.append(local_string2)
+                    #wbs_list.append(line)
                     myfile.write(line)
             # remove the first item in the list as it is the column headings
             wbs_list.pop(0)
@@ -141,7 +154,7 @@ def ReadWriteTaskPredecessor():
         row = []
         (task_predecessor_start, task_predecessor_end) = getTableStartAndEndPositions(task_predecessor_id)
         # now write the wbs_id data into a file with starting and ending line numbers
-        with open(infile, 'r') as f:
+        with open(infile, 'r', errors='ignore') as f:
             # read the lines from the xer file line by line
             # starting from the locations obtained above
             for line in f.readlines()[task_predecessor_start:task_predecessor_end-1]:
@@ -150,7 +163,11 @@ def ReadWriteTaskPredecessor():
                     row[-1].append(i)
                     # writing the lines to the external text file
                 with open(out_Filepath + 'task_predecessor_file.txt', "a") as myfile:
-                    task_pred_list.append(line.replace('\t',','))
+                    # replace all commas in the element with period(.)
+                    local_string1 = line.replace(',', '.')
+                    # replace all tabs with  comma(,) in the element
+                    local_string2 = local_string1.replace('\t', ',')
+                    task_pred_list.append(local_string2)
                     myfile.write(line)
             # remove the first item in the list as it is the column headings
             task_pred_list.pop(0)
@@ -190,7 +207,7 @@ def ReadwriteTASKS():
         row = []
         wbs_list = []
         (task_tab_start, task_tab_end) = getTableStartAndEndPositions(task_tab_id)
-        with open(infile, 'r') as f:
+        with open(infile, 'r', errors='ignore') as f:
 
             for line in f.readlines()[task_tab_start:task_tab_end-1]:
                 #print(line,file=tempOutFile)
@@ -198,7 +215,11 @@ def ReadwriteTASKS():
                 for i in line.split(","):
                     row[-1].append(i)
                 with open(out_Filepath + 'wbs_task.txt', "a") as myfile:
-                    wbs_list.append(line.replace('\t', ','))
+                    # replace all commas in the element with period(.)
+                    local_string1 = line.replace(',', '.')
+                    # replace all tabs with  comma(,) in the element
+                    local_string2 = local_string1.replace('\t', ',')
+                    wbs_list.append(local_string2)
                     myfile.write(line)
             # remove the first item in the list as it is the column headings
             wbs_list.pop(0)
@@ -462,27 +483,14 @@ def replaceSingleQuotes_WBS(txt):
         #print('<< Writing the FINAL_WBS_LIST[] : replaceSingleQuotes_WBS() >>',txt)
         local_wbs_list = []
         for row in csv.reader(txt.splitlines()):
-            diff = len(row) - 27
+            #print(row)
             local_wbs_list.append(row[1])
-            if len(row) == 27:
-                local_wbs_list.append(row[10])
-                local_wbs_list.append(row[12])
-                local_wbs_list.append(row[6])
-            elif len(row) != 27 :
-                LName = row[10]
-                endIndex = 10 + diff
-                parentId = row[endIndex + 2]
-                for i in range(11, endIndex + 1):
-                    LName = LName + "" + row[i]
-                local_wbs_list.append(LName)
-                local_wbs_list.append(parentId)
-                local_wbs_list.append(row[6])
-
+            local_wbs_list.append(row[10])
+            local_wbs_list.append(row[12])
+            local_wbs_list.append(row[6])
         final_wbs_list.append(local_wbs_list)
-        #print('<< FINISHED: Writing the FINAL_WBS_LIST[] for data %s : replaceSingleQuotes_WBS() >>', txt)
     except (Exception) as error:
         print('Error thrown in replaceSingleQuotes_WBS()', error)
-
 
 # This function is to make sure the Task name does not have any commas in them.
 # If there are any commas, it is treated as a separate string and all the
@@ -490,6 +498,7 @@ def replaceSingleQuotes_WBS(txt):
 # As we read the xer file in the task section, there are 65 columns.
 # If there are more than 65 columns, then it is assumed that the Task name has commas and a
 # separate element has been created. So this function, removes the commas and concats the Task name
+
 def replaceSingleQuotes_TASK(txt):
     try:
         #print('<< Writing the FINAL_TASK_LIST[] : replaceSingleQuotes_TASK() >>')
@@ -498,43 +507,21 @@ def replaceSingleQuotes_TASK(txt):
         for row in csv.reader(txt.splitlines()):
             local_task_list.append(row[1])
             local_task_list.append(row[3])
-            if len(row) == 65 :
-                local_task_list.append(row[16])
-                local_task_list.append(row[21])
-                local_task_list.append(row[23])
-                local_task_list.append(row[29])
-                local_task_list.append(row[30])
-                local_task_list.append(row[31])
-                local_task_list.append(row[32])
-                local_task_list.append(row[34])
-                local_task_list.append(row[35])
-                local_task_list.append(row[36])
-                local_task_list.append(row[37])
-                local_task_list.append(row[38])
-                local_task_list.append(row[39])
-                local_task_list.append(row[11])
-                local_task_list.append(row[15])
-            elif len(row) != 65:
-                diff = len(row) - 65
-                LName = row[16]
-                endIndex = 16 + diff
-                for i in range(17, endIndex + 1):
-                    LName = LName + "" + row[i]
-                local_task_list.append(LName)
-                local_task_list.append(row[21+diff])
-                local_task_list.append(row[23+diff])
-                local_task_list.append(row[29+diff])
-                local_task_list.append(row[30+diff])
-                local_task_list.append(row[31+diff])
-                local_task_list.append(row[32+diff])
-                local_task_list.append(row[34+diff])
-                local_task_list.append(row[35+diff])
-                local_task_list.append(row[36+diff])
-                local_task_list.append(row[37+diff])
-                local_task_list.append(row[38+diff])
-                local_task_list.append(row[39+diff])
-                local_task_list.append(row[11])
-                local_task_list.append(row[15])
+            local_task_list.append(row[16])
+            local_task_list.append(row[21])
+            local_task_list.append(row[23])
+            local_task_list.append(row[29])
+            local_task_list.append(row[30])
+            local_task_list.append(row[31])
+            local_task_list.append(row[32])
+            local_task_list.append(row[34])
+            local_task_list.append(row[35])
+            local_task_list.append(row[36])
+            local_task_list.append(row[37])
+            local_task_list.append(row[38])
+            local_task_list.append(row[39])
+            local_task_list.append(row[11])
+            local_task_list.append(row[15])
 
         final_task_list.append(local_task_list)
         #print('<< FINISHED: Writing the FINAL_TASK_LIST[] : replaceSingleQuotes_TASK() >>')
@@ -915,7 +902,7 @@ insertBundlesData()
 createMileStone()
 insertActivity()
 insertActivityPredecessor()
-#expandDates()
+expandDates()
 
 print(datetime.now(),'---- PROGRAM ENDED ----')
 # -- End of Program ---#
