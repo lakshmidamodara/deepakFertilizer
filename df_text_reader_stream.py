@@ -45,8 +45,8 @@ class ErrorOccured(RuntimeError):
 
 print(datetime.now(),': ------------Starting Parser program -----------------')
 global Filepath
-out_Filepath = 'c:\\temp\\deepak\\'
-in_filepath = 'c:\\temp\\deepak\\'
+out_Filepath = 'c:\\temp\\uniper\\'
+in_filepath = 'c:\\temp\\uniper\\'
 
 #infile = in_filepath + 'df_baseline.xer'
 tempOutFile = open(out_Filepath + 'output.txt','w')
@@ -133,8 +133,12 @@ def ReadWriteTable(identifier,start_identifier,end_identifier):
         # now write the wbs_id data into a file with starting and ending line numbers
         line = result[wbs_start_line_number+1:wbs_end_lineno]
         for i in range(0,len(line)): # split the lines based on comma
-            line1 = line[i].replace('\t', ',') # replace tab with commas
-            wbs_list.append(line1)
+            # replace all commas in the element with period(.)
+            local_string1 = line[i].replace(',', '.')
+            # replace all tabs with  comma(,) in the element
+            local_string2 = local_string1.replace('\t', ',')
+
+            wbs_list.append(local_string2)
             # writing the lines to the external text file
             with open(out_Filepath + 'table_file.txt', "a") as myfile:
                 myfile.write(line[i])
@@ -435,28 +439,14 @@ def replaceSingleQuotes_WBS(txt):
         #print('<< Writing the FINAL_WBS_LIST[] : replaceSingleQuotes_WBS() >>',txt)
         local_wbs_list = []
         for row in csv.reader(txt.splitlines()):
-            diff = len(row) - 27
+            #print(row)
             local_wbs_list.append(row[1])
-            if len(row) == 27:
-                local_wbs_list.append(row[10])
-                local_wbs_list.append(row[12])
-                local_wbs_list.append(row[6])
-            elif len(row) != 27 :
-                LName = row[10]
-                endIndex = 10 + diff
-                parentId = row[endIndex + 2]
-                for i in range(11, endIndex + 1):
-                    LName = LName + "" + row[i]
-                local_wbs_list.append(LName)
-                local_wbs_list.append(parentId)
-                local_wbs_list.append(row[6])
-
+            local_wbs_list.append(row[10])
+            local_wbs_list.append(row[12])
+            local_wbs_list.append(row[6])
         final_wbs_list.append(local_wbs_list)
-        #print('<< FINISHED: Writing the FINAL_WBS_LIST[] for data %s : replaceSingleQuotes_WBS() >>', txt)
     except (Exception) as error:
         print('Error thrown in replaceSingleQuotes_WBS()', error)
-        print(sys.exc_traceback.tb_lineno)
-
 
 # This function is to make sure the Task name does not have any commas in them.
 # If there are any commas, it is treated as a separate string and all the
@@ -472,50 +462,27 @@ def replaceSingleQuotes_TASK(txt):
         for row in csv.reader(txt.splitlines()):
             local_task_list.append(row[1])
             local_task_list.append(row[3])
-            if len(row) == 65 :
-                local_task_list.append(row[16])
-                local_task_list.append(row[21])
-                local_task_list.append(row[23])
-                local_task_list.append(row[29])
-                local_task_list.append(row[30])
-                local_task_list.append(row[31])
-                local_task_list.append(row[32])
-                local_task_list.append(row[34])
-                local_task_list.append(row[35])
-                local_task_list.append(row[36])
-                local_task_list.append(row[37])
-                local_task_list.append(row[38])
-                local_task_list.append(row[39])
-                local_task_list.append(row[11])
-                local_task_list.append(row[15])
-            elif len(row) != 65:
-                diff = len(row) - 65
-                LName = row[16]
-                endIndex = 16 + diff
-                for i in range(17, endIndex + 1):
-                    LName = LName + "" + row[i]
-                local_task_list.append(LName)
-                local_task_list.append(row[21+diff])
-                local_task_list.append(row[23+diff])
-                local_task_list.append(row[29+diff])
-                local_task_list.append(row[30+diff])
-                local_task_list.append(row[31+diff])
-                local_task_list.append(row[32+diff])
-                local_task_list.append(row[34+diff])
-                local_task_list.append(row[35+diff])
-                local_task_list.append(row[36+diff])
-                local_task_list.append(row[37+diff])
-                local_task_list.append(row[38+diff])
-                local_task_list.append(row[39+diff])
-                local_task_list.append(row[11])
-                local_task_list.append(row[15])
+            local_task_list.append(row[16])
+            local_task_list.append(row[21])
+            local_task_list.append(row[23])
+            local_task_list.append(row[29])
+            local_task_list.append(row[30])
+            local_task_list.append(row[31])
+            local_task_list.append(row[32])
+            local_task_list.append(row[34])
+            local_task_list.append(row[35])
+            local_task_list.append(row[36])
+            local_task_list.append(row[37])
+            local_task_list.append(row[38])
+            local_task_list.append(row[39])
+            local_task_list.append(row[11])
+            local_task_list.append(row[15])
 
         final_task_list.append(local_task_list)
         #print('<< FINISHED: Writing the FINAL_TASK_LIST[] : replaceSingleQuotes_TASK() >>')
     except (Exception,ErrorOccured) as error:
         print(error)
         print(sys.exc_traceback.tb_lineno)
-
 
 # This function is called from insertProjectData()
 def getProjectID():
