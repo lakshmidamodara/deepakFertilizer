@@ -648,6 +648,9 @@ def insertActivity():
             actualEndDate = final_task_list[i][6]
             plannedStDate = final_task_list[i][13]
             plannedEndDate = final_task_list[i][14]
+            # we are capturing the total actual units and putting it in total_planned_hours
+            total_actual_units_temp = float(final_task_list[i][3])
+            total_actual_units = round(total_actual_units_temp)
             total_planned_units_temp = float(final_task_list[i][4])
             total_planned_units = round(total_planned_units_temp)
 
@@ -667,7 +670,7 @@ def insertActivity():
 
             print(datetime.now(),"----- INSERT Statements for activities() ------------------", file=tempOutFile)
             execSQL = ('insert_activities_data')
-            execData = (activityName,None,None,None,None,phaseID_activityID,localProjectID,total_planned_units,
+            execData = (activityName,None,None,None,total_actual_units,phaseID_activityID,localProjectID,total_planned_units,
                         plannedStDate,plannedEndDate, None,actualStDate,actualEndDate,None,None,activity_taskCode,
                         None,isMileStone,None,None,None)
             print(execSQL, execData, file=tempOutFile)
