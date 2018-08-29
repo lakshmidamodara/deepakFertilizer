@@ -1,4 +1,8 @@
 '''
+
+Date : 23-Aug-2018
+Description : Made changes to add total_actual_units in the table activities:
+              inserted into the row total_planned_hours
 ## ----------- ------------------
 Program Name : df_text_reader_stream.py
 Author : Lakshmi Damodara
@@ -291,18 +295,23 @@ def expandDates():
         dbu.executeQuery(db_conn, execSQL)
 
         for i in range(0,totalRecords):
+            workingDayCount = 0 # this variable to store the total working days for a given activityID
             activityN = expand_dates_list[i][0]
             startDate = expand_dates_list[i][1]
             TendDate = expand_dates_list[i][2]
+            totalActualUnits = expand_dates_list[i][3]
+            totalPlannedUnits = expand_dates_list[i][4]
+
             dtDate = datetime.strptime(startDate, '%Y-%m-%d %H:%M')
             enddtDate = datetime.strptime(TendDate, '%Y-%m-%d %H:%M')
             #Now for each activity, expand the dates startDate until end date
             # and insert into the activities_data table
             dd = [dtDate + timedelta(days=x) for x in range((enddtDate - dtDate).days + 1)]
+            print(dd,file=actvity_txtFile)
 
             for d in dd:
                 #execSQL = ('insert_activity_data_data')
-                execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_UNITS) VALUES (%s,%s,%s);"
+                execSQL = "INSERT INTO ACTIVITY_DATA (ACTIVITY_ID,DATE,PLANNED_HOURS) VALUES (%s,%s,%s);"
                 # get the weekday
                 wDay = getDayofWeek(d)
                 dstat = 'w'
@@ -314,8 +323,7 @@ def expandDates():
                     if dstat == 'w': # if its not a holiday
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4: #monday - friday
                             # activities table insert
-                            #execData = (activityN, dt, None, None, None, planned_hours, None, None)
-                            #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
+                            workingDayCount = workingDayCount + 1
                             execData = (activityN, d, planned_hours)
                             dbu.executeQueryWithData(db_conn, execSQL, execData)
                             print(execSQL, execData,file=actvity_txtFile)
@@ -335,9 +343,12 @@ def expandDates():
                         execData = (activityN, d, planned_hours)
                         dbu.executeQueryWithData(db_conn, execSQL, execData)
                         print(execSQL, execData, file=actvity_txtFile)
+
+                    # insert the planned units and actual units
                 elif tWdays == '6': # if its a 6 day work week : monday to Saturday
                     if dstat == 'w':
                         if wDay == 0 or wDay == 1 or wDay == 2 or wDay == 3 or wDay == 4 or wDay == 5:
+                            workingDayCount = workingDayCount + 1
                             #execData = (activityN, dt, None, None, None, planned_hours, None, None)
                             #l_id = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
                             execData = (activityN, d, planned_hours)
@@ -358,6 +369,34 @@ def expandDates():
                         execData = (activityN, d, planned_hours)
                         dbu.executeQueryWithData(db_conn, execSQL, execData)
                         print(execSQL, execData, file=actvity_txtFile)
+
+            #now divide the planned units and actual units by the total working day count
+            # this calculation goes into table activity_data : planned_units and actual_units
+
+            # if totalPlannedUnits from xer file is zero then we can just insert the planned units to Zero
+            # Also the workingDayCount cannot be zero else it will lead to zero division error
+            # this condition arises when the given activity is scheduled for a weekend and if the
+            # working week is a 5 day week.
+
+            # First calculate for planned units
+            if totalPlannedUnits == 0 or workingDayCount == 0:
+                dailyPlannedUnits = 0
+            elif totalPlannedUnits != 0 and workingDayCount != 0 :
+                dailyPlannedUnits = (totalPlannedUnits / workingDayCount)
+
+            #Next calculate for Actual Units
+            if totalActualUnits == 0 or workingDayCount == 0:
+                dailyActualUnits = 0
+            elif totalActualUnits != 0 and workingDayCount != 0:
+                dailyActualUnits = (totalActualUnits / workingDayCount)
+
+            print('ActivityID=',activityN, 'Total Working Days=',workingDayCount,'Planned Units=', dailyPlannedUnits, 'Actual Units=', dailyActualUnits, file=actvity_txtFile)
+            # now update the actual units and planned units for each date based on the calculation
+            execSQL = "UPDATE ACTIVITY_DATA SET PLANNED_UNITS=%s, ACTUAL_UNITS=%s WHERE ACTIVITY_ID=%s AND" \
+                      " PLANNED_HOURS=%s;"
+            execData = (dailyPlannedUnits,dailyActualUnits,activityN,planned_hours)
+            dbu.executeQueryWithData(db_conn, execSQL, execData)
+            print(execSQL, execData, file=actvity_txtFile)
 
         print(datetime.now(),'<< FINISHED : EXPANDING DATES for ACTIVITY_DATA Table :- expandDates() >>')
     except (Exception) as error:
@@ -678,6 +717,8 @@ def insertActivity():
             local_list.append(lCurrentActivityID)
             local_list.append(plannedStDate)
             local_list.append(plannedEndDate)
+            local_list.append(total_actual_units)
+            local_list.append(total_planned_units)
 
             # inserting the db_activityID and client_ActivityID in to activityID_clientActivityID []
             # This data is required for inserting values into activity_dependencies table
