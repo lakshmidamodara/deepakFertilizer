@@ -5,9 +5,7 @@ Creation Date  : 25/28/2018
 Version        : 1.0
 Description    :
      This program reads the dpr files of deepak fertilizer and loads in the respective tables of cct
-Output File
-1. Based on the number of activities, respective files are written in the output directory
-2. The output directory can be configured on excel_file_config.ini file
+
 
 '''
 
@@ -56,6 +54,7 @@ def readBillOfQuantitySheet():
         row_count = wb.sheet_by_index(sheetIndex).nrows
         column_count = wb.sheet_by_index(sheetIndex).ncols
 
+        #getting the project, phase and vendor details from the sheet - Qty .plan
         project = activeSheet.cell_value(4,0)
         phase = activeSheet.cell_value(5,0)
         vendor = activeSheet.cell_value(6,0)
