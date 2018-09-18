@@ -13,14 +13,13 @@
 CREATE OR REPLACE FUNCTION insert_activities_data(p_name text, p_unit_id integer, p_contractor_name text,
 													p_unit_cost double precision, p_total_planned_hours integer,
 													p_phase_id integer, p_project_id integer,
-													p_total_planned_units bigint, p_planned_start date,
+													p_total_planned_units double precision, p_planned_start date,
 													p_planned_end date, p_unit_name text,
-													p_actual_start date, p_actual_end date,
 													p_hourly_cost double precision,
 													p_total_planned_resources integer, p_external_id text,
 													p_is_deleted integer, p_is_milestone integer, p_material_id integer,
 													p_material_quantity integer,
-													p_material_status text)
+													p_material_status text, p_shift_hours integer, p_shifts integer)
 RETURNS INTEGER AS $$
 DECLARE 
 	l_contractor_id INTEGER;
@@ -45,8 +44,6 @@ BEGIN
 		AND act.planned_start IS NOT DISTINCT FROM p_planned_start
 		AND act.planned_end IS NOT DISTINCT FROM p_planned_end
 		AND act.unit_name IS NOT DISTINCT FROM p_unit_name
-		AND act.actual_start IS NOT DISTINCT FROM p_actual_start
-		AND act.actual_end IS NOT DISTINCT FROM p_actual_end
 		AND act.total_planned_resources IS NOT DISTINCT FROM p_total_planned_resources
 		AND act.external_id IS NOT DISTINCT FROM p_external_id
 		AND act.is_deleted IS NOT DISTINCT FROM p_is_deleted
@@ -54,6 +51,8 @@ BEGIN
 		AND act.material_id IS NOT DISTINCT FROM p_material_id
 		AND act.material_quantity IS NOT DISTINCT FROM p_material_quantity
 		AND act.material_status IS NOT DISTINCT FROM p_material_status
+		AND act.shift_hours IS NOT DISTINCT FROM p_shift_hours
+		AND act.shifts IS NOT DISTINCT FROM p_shifts
 		ORDER BY id;
 
 		RETURN l_activity_id;
@@ -65,16 +64,16 @@ BEGIN
 												phase_id, project_id,
 												total_planned_units, planned_start,
 												planned_end, unit_name,
-												actual_start, actual_end, 
 												hourly_cost, total_planned_resources,
 												external_id, is_deleted, is_milestone,
 												material_id, material_quantity,
-												material_status)
+												material_status, shift_hours, shifts)
 				VALUES (p_name, p_unit_id, l_contractor_id, p_unit_cost, p_total_planned_hours,
 						p_phase_id, p_project_id, p_total_planned_units, p_planned_start,
-						p_planned_end, p_unit_name, p_actual_start, p_actual_end, p_hourly_cost,
+						p_planned_end, p_unit_name, p_hourly_cost,
 						p_total_planned_resources, p_external_id, p_is_deleted, p_is_milestone,
-						p_material_id, p_material_quantity, p_material_status);
+						p_material_id, p_material_quantity, p_material_status, 
+						p_shift_hours, p_shifts);
 
 				RETURN CURRVAL('public.activities_id_seq');
 			WHEN TOO_MANY_ROWS THEN
