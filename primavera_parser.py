@@ -92,7 +92,9 @@ global wbs_lines,task_lines,task_predecessor_lines
 ################## READING STDIN ###########
 # read the stdin data into result variable
 # this will produce a list with strings for each record
-result = sys.stdin.read().splitlines()
+#result = sys.stdin.read().splitlines()
+result = sys.stdin.readlines()
+#print(result,file=tempOutFile)
 
 def getStartingLineNumber(identifier):
     try:
@@ -135,19 +137,12 @@ def ReadWriteTable(identifier,start_identifier,end_identifier):
         print( identifier + ' Start num ' , start_line_num ,' End num ' , end_line_num)
         # now write the wbs_id data into a file with starting and ending line numbers
         line = result[start_line_num+1:end_line_num]
-        print (len(line))
+        #print(line, file=tempOutFile)
+        #print (len(line))
         myfile = open(out_Filepath + '\\' + identifier + 'table_file.txt', "w+")
         for i in range(0,len(line)): # split the lines based on comma
-            # replace all commas in the element with period(.)
-            #local_string1 = line[i].replace(',', '.')
-            # replace all tabs with  comma(,) in the element
-            #local_string2 = local_string1.replace('\t', ',')
-
-            local_string2 = line[i]
-            wbs_list.append(local_string2)
+            wbs_list.append(line[i])
             # writing the lines to the external text file
-
-            #with open(out_Filepath + '\\' + identifier +'table_file.txt', "w+") as myfile:
             myfile.write(line[i])
             myfile.write("\n")
         # remove the first item in the list as it is the column headings
@@ -159,7 +154,7 @@ def ReadWriteTable(identifier,start_identifier,end_identifier):
             elif identifier == "TASK":
                 createTASKList(wbs_list[i])
             elif identifier == "TASKPRED":
-                createTaskPredecessorList(wbs_list[i])
+                createTASKPREDList(wbs_list[i])
 
         if identifier == "WBS":
             print(datetime.now(),"----- Final WBS List ------------------", file=tempOutFile)
@@ -180,23 +175,6 @@ def ReadWriteTable(identifier,start_identifier,end_identifier):
         print(datetime.now(),'Error occurred in ReadWriteTable()',error)
         print(sys.exc_traceback.tb_lineno)
 
-# this function is called from ReadWriteTaskPredecessor()
-# this function creates a list for task predecessor
-def createTaskPredecessorList(txt):
-    try:
-        local_task_pred_list = []
-        global task_predecessor
-        reader = csv.reader(txt.splitlines(), delimiter='\t')
-        # for row in csv.reader(txt.splitlines()):
-        for row in reader:
-            local_task_pred_list.append(row[2])
-            local_task_pred_list.append(row[3])
-            task_predecessor.append(local_task_pred_list)
-    except (Exception) as error:
-        print(datetime.now(),'Error thrown in createTaskPredecessorList() :', error)
-        print(sys.exc_traceback.tb_lineno)
-
-
 def createPhases():
     try:
         # First check to make sure the final_wbs_list is not empty
@@ -207,14 +185,15 @@ def createPhases():
         global phaseID_data
         local_phaseID_data = []
         row = []
-        local_client_projID = int(clientProjectID)
+        #local_client_projID = int(clientProjectID)
         # first read the wbs_final_list.
         # Take the 2nd position in the list
         # compare the clientProjectID with the item in the list (2nd position)
 
         for i in range(0,len(final_wbs_list)):
             row = []
-            if local_client_projID == int(final_wbs_list[i][2]):
+            #if local_client_projID == int(final_wbs_list[i][2]):
+            if clientProjectID == final_wbs_list[i][2]:
                 row.append(final_wbs_list[i][0])
                 row.append(final_wbs_list[i][1])
                 row.append(final_wbs_list[i][2])
@@ -227,7 +206,7 @@ def createPhases():
         # delete all the lists and variables from memory
         del row
         del local_phaseID_data
-        del local_client_projID
+
         print(datetime.now(),'<< FINISHED: Creating PHASES LIST :- createPhases() >>')
     except (Exception,ErrorOccured) as error:
         print(datetime.now(),'Error in createPhases() %s:' %error)
@@ -247,11 +226,11 @@ def insertPhases():
         db_conn = dbu.getConn()
         print(datetime.now(),"-------Writing PHASES Data to PHASES Table --------------------", file=tempOutFile)
         for i in range(0, len(phaseID_data)):
-            lPhaseName = phaseID_data[i][1]
-            lPhaseID = phaseID_data[i][0]
+            lPhaseName = phaseID_data[i][0]
+            lPhaseID = phaseID_data[i][1]
             print(datetime.now(),"----- INSERT Statements for Phases ------------------", file=tempOutFile)
             execSQL = ('insert_phases_data')
-            execData = (lPhaseName,None,None,None,None,ProjectID,None,None)
+            execData = (lPhaseName, ProjectID)
             print(execSQL, execData, file=tempOutFile)
             lCurrentPhaseID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
             #store the db_phaseID along with client wbsID in the phases_dict
@@ -446,14 +425,12 @@ def readHolidays():
         print(datetime.now(),'<< READING HOLIDAYS Table :- readHolidays() >>')
         # get database connection
         db_conn = dbu.getConn()
-        stProc = "SELECT holiday from holidays"
+        stProc = "SELECT holiday from holidays where project_id = '%s'" %ProjectID
         m_row = dbu.executeQueryRes(db_conn, stProc)
 
-        # if there is no data in holidays[], then set the holidayFlag = 0
-        # Once the global flag is set, then the expand dates
-        # will not call this function for each date value
+        # if there is no data in holidays table, then set the holidayFlag = 0
         if len(m_row) == 0:
-            print('--There was no Holiday Data ----- ', file=tempOutFile)
+            print('--There is no Holiday Data ----- ', file=tempOutFile)
             holidayFlag = 0
 
         # Reading the data fetched from the database
@@ -472,12 +449,8 @@ def readHolidays():
 
 #-------- Utility functions ---------------
 
-# This function is to make sure the bundle name does not have any commas in them.
-# If there are any commas, it is treated as a separate string and all the
-# elements in the list gets shifted one position.
-# As we read the xer file in the task section, there are 27 columns.
-# If there are more than 65 columns, then it is assumed that the Task name has commas and a
-# separate element has been created. So this function, removes the commas and concats the Task name
+# This function processes the WBS Structure in the Primavera file.
+# Splits the columns by tab delimiter and reads the appropriate columns
 def createWBSList(txt):
     try:
         #print('<< Writing the FINAL_WBS_LIST[] : createWBSList() >>',txt)
@@ -494,12 +467,8 @@ def createWBSList(txt):
     except (Exception) as error:
         print('Error thrown in createWBSList()', error)
 
-# This function is to make sure the Task name does not have any commas in them.
-# If there are any commas, it is treated as a separate string and all the
-# elements in the list gets shifted one position.
-# As we read the xer file in the task section, there are 65 columns.
-# If there are more than 65 columns, then it is assumed that the Task name has commas and a
-# separate element has been created. So this function, removes the commas and concats the Task name
+# This function processes the TASK table in the Primavera file.
+# Splits the columns by tab delimiter and reads the appropriate columns
 def createTASKList(txt):
     try:
         #print('<< Writing the FINAL_TASK_LIST[] : createTASKList() >>')
@@ -532,6 +501,22 @@ def createTASKList(txt):
         print(error)
         print(sys.exc_traceback.tb_lineno)
 
+# This function processes the TASKPRED table to list activity dependencies in the Primavera file.
+# Splits the columns by tab delimiter and reads the appropriate columns
+def createTASKPREDList(txt):
+    try:
+        local_task_pred_list = []
+        global task_predecessor
+        reader = csv.reader(txt.splitlines(), delimiter='\t')
+        # for row in csv.reader(txt.splitlines()):
+        for row in reader:
+            local_task_pred_list.append(row[2])
+            local_task_pred_list.append(row[3])
+            task_predecessor.append(local_task_pred_list)
+    except (Exception) as error:
+        print(datetime.now(), 'Error thrown in createTASKPREDList() :', error)
+        print(sys.exc_traceback.tb_lineno)
+
 # This function is called from insertProjectData()
 def getProjectID():
     try:
@@ -550,10 +535,8 @@ def getProjectID():
             ProjectID = insertProjectData(local_project_name)
             if type(ProjectID) == tuple: # if the project id already exists, then a tuple is returned
                 ProjectID = ProjectID[0] # so we need to extract the 0th element of the tuple as int
-                print('Project ID:', type(ProjectID))
+        print('Project ID:', type(ProjectID))
 
-        #elif IsProjectFlag == 'N':
-        #    # Go through the final_wbs_list and find the project Node flag
         print(datetime.now(),'<< FINISHED: Getting ProjectID from InputDataFile : getProjectID() >>', ProjectID)
     except (Exception,ErrorOccured) as error:
         print (datetime.now(),"Error in reading Project Table(): %s" %error)
@@ -568,18 +551,12 @@ def insertProjectData(prjName):
         print(datetime.now(),'<< Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
         # get database connection
         db_conn = dbu.getConn()
-        stProc = "SELECT ID from PROJECTS WHERE NAME='%s'" %prjName
-        #m_row = dbu.executeQueryRes(db_conn, stProc)[0]
-        m_row = dbu.executeQueryRes(db_conn, stProc)
-        if len(m_row) >0:
-            return m_row[0]
-        else:
-            print(datetime.now(),"----- INSERT Statements for New Project ------------------", file=tempOutFile)
-            execSQL = ('insert_project_data')
-            execData = (prjName, None, None, None,None,None, None, None)
-            print(execSQL,execData,file=tempOutFile)
-            prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
-            return prjID
+        print(datetime.now(),"----- INSERT Statements for New Project ------------------", file=tempOutFile)
+        execSQL = ('insert_project_data')
+        execData = (prjName, None, None, None,None,None, None, None)
+        print(execSQL,execData,file=tempOutFile)
+        prjID = dbu.fetchStoredFuncRes(db_conn, execSQL,execData)[0]
+        return prjID
         print(datetime.now(),'<< FINISHED: Getting ProjectID from PROJECT TABLE : insertProjectData() >>')
     except (Exception, psycopg2.DatabaseError) as error:
         print(datetime.now(),"Database Error %s " % error)
@@ -718,9 +695,9 @@ def insertActivity():
 
             print(datetime.now(),"----- INSERT Statements for activities() ------------------", file=tempOutFile)
             execSQL = ('insert_activities_data')
-            execData = (activityName,None,None,None,total_actual_units,phaseID_activityID,localProjectID,total_planned_units,
-                        plannedStDate,plannedEndDate, None,actualStDate,actualEndDate,None,None,activity_taskCode,
-                        None,isMileStone,None,None,None)
+            execData = (activityName,None,None,None,None,phaseID_activityID,localProjectID,total_planned_units,
+                        plannedStDate,plannedEndDate, None,None,None,activity_taskCode,
+                        None,isMileStone,None,None,None, None,None)
             print(execSQL, execData, file=tempOutFile)
             lCurrentActivityID = dbu.fetchStoredFuncRes(db_conn, execSQL, execData)[0]
             local_list.append(lCurrentActivityID)
@@ -925,8 +902,8 @@ ReadWriteTable("WBS",wbs_tab_id,table_end_identifier)
 ReadWriteTable("TASK",task_tab_id,table_end_identifier)
 ReadWriteTable("TASKPRED",task_predecessor_id,table_end_identifier)
 
-readHolidays()
 getProjectID()
+readHolidays()
 createPhases()
 insertPhases()
 createActivityPhases()
